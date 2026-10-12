@@ -1,15 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 // Demo catalogue. Names are sample listings; prices and coordinates are illustrative.
-const photoSet = [
-  'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1000&q=85',
-  'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=85',
-  'https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?auto=format&fit=crop&w=1000&q=85',
-  'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1000&q=85',
-  'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1000&q=85',
-  'https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?auto=format&fit=crop&w=1000&q=85',
-]
-
 const pondicherryNames = [
   'Palais de Mahe', 'Le Dupleix', 'The Promenade', 'Accord Puducherry', 'Le Pondy',
   'Maison Perumal', 'Villa Shanti', 'La Villa', 'Anandha Inn', 'Hotel Annamalai International',
@@ -30,23 +21,32 @@ const chennaiNames = [
   'Holiday Inn Chennai OMR IT Expressway', 'Kaldan Samudhra Palace',
 ]
 
-const descriptions = [
-  'A comfortable city stay with welcoming hospitality, thoughtfully designed rooms, and an easy base for exploring nearby sights.',
-  'Settle into a calm, well-connected retreat with warm service, relaxed spaces, and the essentials for a pleasant visit.',
-  'Enjoy a convenient stay with inviting interiors, attentive service, and a location close to the city’s dining and attractions.',
-  'A relaxed place to recharge after a day out, with comfortable rooms and friendly service for both short and longer visits.',
+const stayDetails = [
+  ['Start the morning with a slow breakfast before heading out to explore.', 'The rooms pair calming colors with comfortable spaces to unwind after a busy day.'],
+  ['A welcoming base for discovering neighborhood cafés, markets, and local landmarks.', 'Guests can settle in with thoughtful comforts and an easygoing atmosphere.'],
+  ['Designed for unhurried stays, with inviting interiors and space to recharge.', 'The location makes it simple to plan a day around the city and return to a quieter retreat.'],
+  ['Enjoy a restful night and a relaxed start before setting out to see the sights.', 'Friendly service and practical comforts make this a convenient choice for a city break.'],
+  ['A comfortable place to return to after exploring the area’s food and culture.', 'Bright rooms and welcoming shared spaces set the tone for an easy visit.'],
+  ['Make this your home base for local discoveries, from early walks to late dinners.', 'The stay blends a peaceful atmosphere with convenient access around town.'],
+  ['Settle into a slower rhythm with comfortable rooms and a warm welcome.', 'A considered city hideaway for travelers who want both comfort and convenience.'],
+  ['Plan a full day out, then come back to a calm space made for resting.', 'Simple, thoughtful details help make a short trip feel effortless.'],
+  ['A handy location for sightseeing, dining, and getting to know the city.', 'Relax in inviting surroundings with the essentials for a pleasant stay.'],
+  ['Ease into the day with a comfortable room and the city close at hand.', 'A relaxed atmosphere makes it easy to recharge between outings.'],
+  ['An inviting retreat for a weekend away or a longer visit.', 'Comfortable spaces and attentive hospitality help you feel at home in the city.'],
+  ['Spend the day exploring nearby highlights and the evening unwinding in comfort.', 'Thoughtful touches and a convenient setting make this a memorable city base.'],
+  ['A calm place to pause between local adventures and memorable meals.', 'Settle in and enjoy a comfortable stay with the city within easy reach.'],
 ]
 
 const makeHotels = (names, city, baseLat, baseLng, priceBase, startId) => names.map((title, index) => ({
   id: String(startId + index),
   title,
   location: city,
-  description: descriptions[index % descriptions.length],
+  description: `${title} offers a welcoming stay in ${city}. ${stayDetails[index % stayDetails.length][index % 2]} ${index % 2 === 0 ? 'Ideal for a relaxed getaway or a convenient city visit.' : 'A comfortable choice for discovering the character of the destination.'}`,
   // Small offsets keep demo map pins near the named city; replace with verified property coordinates for production.
   latitude: Number((baseLat + ((index % 7) - 3) * 0.008).toFixed(6)),
   longitude: Number((baseLng + ((index % 9) - 4) * 0.009).toFixed(6)),
   price: priceBase + (index % 8) * 1250,
-  image: photoSet[index % photoSet.length],
+  image: `https://loremflickr.com/1000/700/hotel,interior?lock=${startId + index}`,
 }))
 
 const initialState = {
