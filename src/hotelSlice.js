@@ -46,7 +46,9 @@ const makeHotels = (names, city, baseLat, baseLng, priceBase, startId) => names.
   latitude: Number((baseLat + ((index % 7) - 3) * 0.008).toFixed(6)),
   longitude: Number((baseLng + ((index % 9) - 4) * 0.009).toFixed(6)),
   price: priceBase + (index % 8) * 1250,
-  image: `https://loremflickr.com/1000/700/hotel,interior?lock=${startId + index}`,
+  // Picsum's stable per-seed URLs prevent the previous keyword endpoint from
+  // serving the same cached hotel photo for multiple cards.
+  image: `https://picsum.photos/seed/havenstay-${startId + index}/1000/700`,
 }))
 
 const initialState = {

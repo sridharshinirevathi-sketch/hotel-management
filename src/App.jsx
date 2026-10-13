@@ -18,32 +18,25 @@ function HotelCard({ hotel, onDelete }) {
   </article>
 }
 
-function Pagination({ page, pageCount, onChange }) {
-  if (pageCount <= 1) return null
-  return <div className="pagination"><button disabled={page === 1} onClick={() => onChange(page - 1)}>←</button>{Array.from({ length: pageCount }, (_, i) => i + 1).map(number => <button key={number} className={number === page ? 'active' : ''} onClick={() => onChange(number)}>{number}</button>)}<button disabled={page === pageCount} onClick={() => onChange(page + 1)}>→</button></div>
-}
-
 function Home() {
   const hotels = useSelector(state => state.hotels.items)
   const dispatch = useDispatch()
   const [query, setQuery] = useState('')
   const [min, setMin] = useState('')
   const [max, setMax] = useState('')
-  const [page, setPage] = useState(1)
   const [notice, setNotice] = useState('')
-  const perPage = 6
-  const filtered = useMemo(() => hotels.filter(h => h.title.toLowerCase().includes(query.toLowerCase()) && (min === '' || h.price >= Number(min)) && (max === '' || h.price <= Number(max))), [hotels, query, min, max])
-  const pageCount = Math.ceil(filtered.length / perPage)
-  const visible = filtered.slice((page - 1) * perPage, page * perPage)
+  const filtered = useMemo(() => hotels.filter(h =>
+    (h.title.toLowerCase().includes(query.toLowerCase()) || h.location.toLowerCase().includes(query.toLowerCase())) &&
+    (min === '' || h.price >= Number(min)) &&
+    (max === '' || h.price <= Number(max))), [hotels, query, min, max])
   const remove = (id) => { dispatch(deleteHotel(id)); setNotice('Hotel removed successfully'); window.setTimeout(() => setNotice(''), 2800) }
-  const updateFilter = (setter) => (event) => { setter(event.target.value); setPage(1) }
+  const updateFilter = (setter) => (event) => setter(event.target.value)
   return <><Helmet><title>Find your next stay | Havenstay</title><meta name="description" content="Browse boutique hotels and find your next memorable stay." /></Helmet><main>
     <section className="hero"><div className="hero-copy"><span className="eyebrow">YOUR NEXT GETAWAY STARTS HERE</span><h1>Find a place<br />to <em>belong.</em></h1><p>Thoughtful stays for the curious traveler.<br />Find your corner of the world.</p><a href="#stays" className="hero-button">Explore stays <span>↘</span></a></div><div className="hero-image"><img alt="A peaceful modern hotel retreat beside the sea" src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1400&q=85"/><span className="image-note">Somewhere worth slowing down <span>↗</span></span></div><div className="hero-index">01 <span>—</span> 04</div></section>
     <section className="listing" id="stays"><div className="section-head"><div><span className="eyebrow">CURATED FOR YOU</span><h2>Places to stay</h2></div><p>Find the stay that makes<br />the whole trip.</p></div>
-      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by title" /></label><div className="price-filter"><span>Price per night</span><label><span className="sr-only">Minimum price</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min $" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum price</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max $" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
+      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Price per night</span><label><span className="sr-only">Minimum price</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum price</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax('') }}>Reset</button></div>
       <div className="results-line"><span>{filtered.length} stays to inspire your next trip</span><span>Sort by <strong>Recommended⌄</strong></span></div>
-      {visible.length ? <div className="hotel-grid">{visible.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}
-      <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+      {filtered.length ? <div className="hotel-grid">{filtered.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}
     </section>
   </main><footer id="about"><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><a href="#stays">Back to top ↑</a></footer>{notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}</>
 }
