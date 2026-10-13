@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
 const destinations = {
   Chennai: { latitude: 13.0827, longitude: 80.2707, price: 8500 },
@@ -110,17 +110,46 @@ const makeHotel = ([title, location], index) => {
   }
 }
 
-const initialState = { items: listings.map(makeHotel) }
+export const initialHotels = listings.map(makeHotel)
+
+const apiRequest = async (path, options) => {
+  const response = await fetch(path, options)
+  if (response.status === 204) return null
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'The request could not be completed.')
+  return result
+}
+
+export const fetchHotels = createAsyncThunk(
+  'hotels/fetchAll',
+  () => apiRequest('/api/hotels'),
+  { condition: (_, { getState }) => !['loading', 'succeeded'].includes(getState().hotels.status) },
+)
+export const addHotel = createAsyncThunk('hotels/create', (hotel) =>
+  apiRequest('/api/hotels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(hotel) }))
+export const updateHotel = createAsyncThunk('hotels/update', ({ id, ...hotel }) =>
+  apiRequest(`/api/hotels/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(hotel) }))
+export const deleteHotel = createAsyncThunk('hotels/delete', (id) =>
+  apiRequest(`/api/hotels/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(() => id))
+
+const initialState = { items: [], status: 'idle', error: null }
 
 const hotelSlice = createSlice({
   name: 'hotels',
   initialState,
-  reducers: {
-    addHotel: (state, action) => { state.items.unshift(action.payload) },
-    updateHotel: (state, action) => { const index = state.items.findIndex(hotel => hotel.id === action.payload.id); if (index !== -1) state.items[index] = action.payload },
-    deleteHotel: (state, action) => { state.items = state.items.filter(hotel => hotel.id !== action.payload) },
+  reducers: {},
+  extraReducers: builder => {
+    builder
+      .addCase(fetchHotels.pending, state => { state.status = 'loading'; state.error = null })
+      .addCase(fetchHotels.fulfilled, (state, action) => { state.items = action.payload; state.status = 'succeeded' })
+      .addCase(fetchHotels.rejected, (state, action) => { state.status = 'failed'; state.error = action.error.message || 'Could not load hotels.' })
+      .addCase(addHotel.fulfilled, (state, action) => { state.items.unshift(action.payload) })
+      .addCase(updateHotel.fulfilled, (state, action) => {
+        const index = state.items.findIndex(hotel => hotel.id === action.payload.id)
+        if (index !== -1) state.items[index] = action.payload
+      })
+      .addCase(deleteHotel.fulfilled, (state, action) => { state.items = state.items.filter(hotel => hotel.id !== action.payload) })
   },
 })
 
-export const { addHotel, updateHotel, deleteHotel } = hotelSlice.actions
 export default hotelSlice.reducer
