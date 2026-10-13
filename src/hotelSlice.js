@@ -1,62 +1,116 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-// Demo catalogue. Names are sample listings; prices and coordinates are illustrative.
-const pondicherryNames = [
-  'Palais de Mahe', 'Le Dupleix', 'The Promenade', 'Accord Puducherry', 'Le Pondy',
-  'Maison Perumal', 'Villa Shanti', 'La Villa', 'Anandha Inn', 'Hotel Annamalai International',
-  'Hotel Atithi', 'Shenbaga Hotel & Convention Centre', 'The Sunway Manor', 'Ocean Spray',
-  'Dune Eco Village and Spa', 'Mango Hill Hotel', 'The Ashok Beach Resort', 'Club Mahindra Puducherry',
-  'Ginger Pondicherry', 'Hotel Surguru', 'Hotel Bonsejour', 'Hotel De Petit',
-  'Villa Krish', 'The Richmond', 'Hotel Corbelli', 'De Fleur Hotel',
-]
-
-const chennaiNames = [
-  'ITC Grand Chola', 'Taj Coromandel', 'Taj Connemara', 'The Leela Palace Chennai',
-  'Park Hyatt Chennai', 'Hyatt Regency Chennai', 'The Raintree, Anna Salai', 'The Raintree, St. Mary’s Road',
-  'Hilton Chennai', 'The Westin Chennai Velachery', 'Radisson Blu Hotel Chennai City Centre',
-  'Radisson Blu Hotel GRT Chennai', 'Courtyard by Marriott Chennai', 'The Residency Towers',
-  'Grand Chennai by GRT Hotels', 'Trident Chennai', 'Welcomhotel by ITC Hotels, Cathedral Road',
-  'Taj Club House', 'The Park Chennai', 'Ramada Plaza by Wyndham Chennai', 'Feathers - A Radha Hotel',
-  'Novotel Chennai Chamiers Road', 'Novotel Chennai Sipcot', 'Four Points by Sheraton Chennai OMR',
-  'Holiday Inn Chennai OMR IT Expressway', 'Kaldan Samudhra Palace',
-]
-
-const stayDetails = [
-  ['Start the morning with a slow breakfast before heading out to explore.', 'The rooms pair calming colors with comfortable spaces to unwind after a busy day.'],
-  ['A welcoming base for discovering neighborhood cafés, markets, and local landmarks.', 'Guests can settle in with thoughtful comforts and an easygoing atmosphere.'],
-  ['Designed for unhurried stays, with inviting interiors and space to recharge.', 'The location makes it simple to plan a day around the city and return to a quieter retreat.'],
-  ['Enjoy a restful night and a relaxed start before setting out to see the sights.', 'Friendly service and practical comforts make this a convenient choice for a city break.'],
-  ['A comfortable place to return to after exploring the area’s food and culture.', 'Bright rooms and welcoming shared spaces set the tone for an easy visit.'],
-  ['Make this your home base for local discoveries, from early walks to late dinners.', 'The stay blends a peaceful atmosphere with convenient access around town.'],
-  ['Settle into a slower rhythm with comfortable rooms and a warm welcome.', 'A considered city hideaway for travelers who want both comfort and convenience.'],
-  ['Plan a full day out, then come back to a calm space made for resting.', 'Simple, thoughtful details help make a short trip feel effortless.'],
-  ['A handy location for sightseeing, dining, and getting to know the city.', 'Relax in inviting surroundings with the essentials for a pleasant stay.'],
-  ['Ease into the day with a comfortable room and the city close at hand.', 'A relaxed atmosphere makes it easy to recharge between outings.'],
-  ['An inviting retreat for a weekend away or a longer visit.', 'Comfortable spaces and attentive hospitality help you feel at home in the city.'],
-  ['Spend the day exploring nearby highlights and the evening unwinding in comfort.', 'Thoughtful touches and a convenient setting make this a memorable city base.'],
-  ['A calm place to pause between local adventures and memorable meals.', 'Settle in and enjoy a comfortable stay with the city within easy reach.'],
-]
-
-const makeHotels = (names, city, baseLat, baseLng, priceBase, startId) => names.map((title, index) => ({
-  id: String(startId + index),
-  title,
-  location: city,
-  description: `${title} offers a welcoming stay in ${city}. ${stayDetails[index % stayDetails.length][index % 2]} ${index % 2 === 0 ? 'Ideal for a relaxed getaway or a convenient city visit.' : 'A comfortable choice for discovering the character of the destination.'}`,
-  // Small offsets keep demo map pins near the named city; replace with verified property coordinates for production.
-  latitude: Number((baseLat + ((index % 7) - 3) * 0.008).toFixed(6)),
-  longitude: Number((baseLng + ((index % 9) - 4) * 0.009).toFixed(6)),
-  price: priceBase + (index % 8) * 1250,
-  // Picsum's stable per-seed URLs prevent the previous keyword endpoint from
-  // serving the same cached hotel photo for multiple cards.
-  image: `https://picsum.photos/seed/havenstay-${startId + index}/1000/700`,
-}))
-
-const initialState = {
-  items: [
-    ...makeHotels(pondicherryNames, 'Puducherry', 11.934, 79.830, 2500, 1),
-    ...makeHotels(chennaiNames, 'Chennai', 13.083, 80.270, 3200, 27),
-  ],
+const destinations = {
+  Chennai: { latitude: 13.0827, longitude: 80.2707, price: 8500 },
+  Tirunelveli: { latitude: 8.7139, longitude: 77.7567, price: 3500 },
+  Tiruchirappalli: { latitude: 10.7905, longitude: 78.7047, price: 4500 },
+  Kanadukathan: { latitude: 10.1724, longitude: 78.7782, price: 11000 },
+  Pollachi: { latitude: 10.6583, longitude: 77.0085, price: 9000 },
+  Madurai: { latitude: 9.9252, longitude: 78.1198, price: 5500 },
+  Tiruppur: { latitude: 11.1085, longitude: 77.3411, price: 3500 },
+  Thanjavur: { latitude: 10.787, longitude: 79.1378, price: 5000 },
+  Coimbatore: { latitude: 11.0168, longitude: 76.9558, price: 5500 },
+  Ooty: { latitude: 11.4102, longitude: 76.695, price: 7000 },
+  Vellore: { latitude: 12.9165, longitude: 79.1325, price: 4000 },
+  Avinashi: { latitude: 11.192, longitude: 77.268, price: 3500 },
+  'Kolli Hills': { latitude: 11.248, longitude: 78.338, price: 6500 },
+  Kodaikanal: { latitude: 10.2381, longitude: 77.4892, price: 7500 },
+  Yercaud: { latitude: 11.7753, longitude: 78.209, price: 6500 },
+  Krishnagiri: { latitude: 12.5186, longitude: 78.2137, price: 4000 },
+  Nagercoil: { latitude: 8.1833, longitude: 77.4119, price: 4000 },
 }
+
+const listings = [
+  ['5 Star Residency', 'Chennai'],
+  ['A Radha Hotel (Feathers)', 'Chennai'],
+  ['Accord Metropolitan', 'Chennai'],
+  ['Hotel Applettree', 'Tirunelveli'],
+  ['Breeze Residency', 'Tiruchirappalli'],
+  ['Chidambara Vilas', 'Kanadukathan'],
+  ['Coco Lagoon by Great Mount', 'Pollachi'],
+  ['Fortune Pandiyan Hotel', 'Madurai'],
+  ['Ginger Tiruppur', 'Tiruppur'],
+  ['Grand Chennai by GRT Hotels', 'Chennai'],
+  ['Great Trails River View Resort', 'Thanjavur'],
+  ['Heritage Madurai', 'Madurai'],
+  ['Hotel Parisutham', 'Thanjavur'],
+  ['Hyatt Regency Chennai', 'Chennai'],
+  ['ibis Coimbatore City Centre', 'Coimbatore'],
+  ['Zone by The Park, Coimbatore (ICON by Annapoorna)', 'Coimbatore'],
+  ['Indovacations Ooty', 'Ooty'],
+  ['ITC Grand Chola', 'Chennai'],
+  ['The Leela Palace Chennai', 'Chennai'],
+  ['Make My Trip Tiruppur', 'Tiruppur'],
+  ['Le Méridien Coimbatore', 'Coimbatore'],
+  ['MGM Beach Resorts', 'Chennai'],
+  ['Park Inn', 'Vellore'],
+  ['Pioneer Grand Palace', 'Nagercoil'],
+  ['Poppys Tower Kumaran', 'Tiruppur'],
+  ['Radisson Blu Coimbatore', 'Coimbatore'],
+  ['RK Residency', 'Avinashi'],
+  ['RVR Rejoice Villa Resorts', 'Kolli Hills'],
+  ['Sterling Holidays Resort', 'Kodaikanal'],
+  ['Sterling Yercaud', 'Yercaud'],
+  ['Svatma', 'Thanjavur'],
+  ['Taj Club House', 'Chennai'],
+  ['TGI Grand Fortuna', 'Krishnagiri'],
+  ['The Tamara Kodai', 'Kodaikanal'],
+  ['Welcomhotel by ITC Hotels, Cathedral Road', 'Chennai'],
+  ['Vivanta Coimbatore', 'Coimbatore'],
+]
+
+const hotelImages = {
+  'A Radha Hotel (Feathers)': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3-K3WWlX8vZQYUW-lIXxpzNcSnjFu9Zib77-iWCm9uw&s=10',
+  'Accord Metropolitan': 'https://assets.simplotel.com/simplotel/image/upload/w_1200,q_80,f_auto/accord-hotels-resorts/Shot%2035(exterior1)corrected_b6e7bcbc.jpg',
+  'Hotel Applettree': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMI10xp7YdPCfnp0X32qr0oXR5hBe4DaG1xRYbz6g2PA&s=10',
+  'Breeze Residency': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjz5_vG_M436u4pMiIyiVsLKKaOCLMYv1gL_JzlJ7zaA&s=10',
+  'Chidambara Vilas': 'https://assets.simplotel.com/simplotel/image/upload/w_1200,q_80,f_auto/chidambara-vilas---a-luxury-heritage-resort/facade-aerial',
+  'Coco Lagoon by Great Mount': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgI1fI49RU8EDtUNiYFYAf907B3S2iJ1vSk_7HBXoA5Q&s=10',
+  'Fortune Pandiyan Hotel': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0A_15DMiMjIakB1Q6ruR7xjyi8WQSDdt9dFb60l1usMs3&s',
+  'Ginger Tiruppur': 'https://media-cdn.tripadvisor.com/media/photo-s/2c/71/44/9f/facade.jpg',
+  'Grand Chennai by GRT Hotels': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQaCETO7S-w_-PfA0lUSrTlfIn91z7N7AJVQi24dngncg&s=10',
+  'Great Trails River View Resort': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLx9VWWqflW4acY6yfirccMrBJJyJsktJ0oKRjXmRBCA&s=10',
+  'Heritage Madurai': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRK30eVsdGKO1w8rxhKzaR5oO9KACkkyBr8BclO19mtFQ&s=10',
+  'Hotel Parisutham': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFUNLhASMJEWCTkfmN-fmmAf2ip5gyzAfPApb-Vz_BKg&s=10',
+  'Hyatt Regency Chennai': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBG2T9wEgtJUiTGTQl3Xv1vBx04KDun_VXRRqjMh2Rnw&s=10',
+  'ibis Coimbatore City Centre': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwtOxjB68o9OEQ7NmQUO4lLV-B4E-xpNBOjeetZHIJCA&s=10',
+  'Zone by The Park, Coimbatore (ICON by Annapoorna)': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3RemE3mKojmCyIIBzXFqjofUQHKK5XeiTCh5pTK3SsA&s=10',
+  'ITC Grand Chola': 'https://www.itchotels.com/content/dam/itchotels/in/umbrella/itc/hotels/itcgrandchola-chennai/images/overview/headmast-desktop/pool-long-dusk.png',
+  'The Leela Palace Chennai': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS2djp-6bvDGZk2_Dax4U9Yn1TeCblXaoNCL2IOdPbbMg&s=10',
+  'Le Méridien Coimbatore': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJz5ioPaY0L4gACJmJieQ7x6YT-K36Q7KeUvvtmRUwQ&s=10',
+  'MGM Beach Resorts': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR05BW5JRCeiLDIQ0EOf9FWE6VPrp5JX5k5gVBKG710MA&s=10',
+  'Park Inn': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSxpYUxNqL73kkFIU4-r01k1dhU1WxDkFAVVc4c_wwHrQ&s',
+  'Pioneer Grand Palace': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3gUXuUf-tu9-5png6GPzNUI9rmCWe__PCyeH9Ejm0Gw&s=10',
+  'Poppys Tower Kumaran': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ65xdP-A4ssAfU8tBxTCMftwq186VCGJm8sxQW3lO3Cg&s',
+  'Radisson Blu Coimbatore': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQkru7qiOqdT4WlujzXHYC91Y14xE_DjWq88W_T9XG1Ow&s',
+  'RVR Rejoice Villa Resorts': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlPjvhWCA1K7AEbwYJisa_qwwBL4d14qMT0q934dvmiA&s=10',
+  'Sterling Holidays Resort': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ08_s63UrY0HkTSCYEJFfx5vG9T8sEQkaB7gGiZzgHXg&s=10',
+  'Sterling Yercaud': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_Lp7wpva8qX3K2l8jTWhgfW6O63zPZXPROtZ5LkEU4Q&s=10',
+  Svatma: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4XXUpgMJk3DJ0v4tEfxKS2F1rJ3piOaLw21-Jto2W7g&s=10',
+  'Taj Club House': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ6W-T3fySel6bJhjuBxISW4iqK6RvqcGKQbEhhVuag_A&s=10',
+  'TGI Grand Fortuna': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2x3p5hAQquh464RBaa15aML-Uly_WPd7P2li9XQcaYA&s=10',
+  'The Tamara Kodai': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyp1ZN1thHhTik6uh__EyxghLIz_SL1wlKEt3lFksN1A&s=10',
+  'Welcomhotel by ITC Hotels, Cathedral Road': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRxdH9T7nxHUdglN90vyh9mIhFsl52mRLPLGAKkSTJFvw&s=10',
+  'Vivanta Coimbatore': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQSCdvB75wi78QrRLevgXPMaiLJ-twPdBAddMhyVUCjOw&s=10',
+}
+
+const makeHotel = ([title, location], index) => {
+  const destination = destinations[location]
+  const image = hotelImages[title]
+  return {
+    id: String(index + 1),
+    title,
+    location: `${location}, Tamil Nadu`,
+    description: `${title} is located in ${location}, Tamil Nadu. Explore the property's facilities, nearby attractions, and current availability before booking.`,
+    latitude: destination.latitude,
+    longitude: destination.longitude,
+    price: destination.price + (index % 5) * 500,
+    image: image || `https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1000&q=80&sig=${index}`,
+    imageIsVerified: Boolean(image),
+  }
+}
+
+const initialState = { items: listings.map(makeHotel) }
 
 const hotelSlice = createSlice({
   name: 'hotels',
