@@ -34,6 +34,25 @@ export async function initializeDatabase() {
     )
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS booking_requests (
+      id UUID PRIMARY KEY,
+      hotel_id TEXT NOT NULL,
+      hotel_title VARCHAR(100) NOT NULL,
+      hotel_location VARCHAR(200) NOT NULL,
+      guest_name VARCHAR(100) NOT NULL,
+      guest_email VARCHAR(254) NOT NULL,
+      check_in DATE NOT NULL,
+      check_out DATE NOT NULL,
+      guests SMALLINT NOT NULL CHECK (guests BETWEEN 1 AND 20),
+      price_per_night NUMERIC(12, 2) NOT NULL CHECK (price_per_night > 0),
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'declined')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (check_out > check_in)
+    )
+  `)
+  await pool.query('CREATE INDEX IF NOT EXISTS booking_requests_created_at_idx ON booking_requests (created_at DESC)')
+
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM hotels')
   if (rows[0].count !== 0) return
 

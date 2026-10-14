@@ -55,5 +55,20 @@ Express serves the built frontend, API, and uploaded hotel photos from the same 
 | `PUT` | `/api/hotels/:id` | Update a hotel |
 | `DELETE` | `/api/hotels/:id` | Delete a hotel |
 | `POST` | `/api/uploads` | Upload a JPG, PNG, or WebP photo (up to 5 MB) |
+| `POST` | `/api/bookings` | Save a pending booking request (no payment) |
 
-The app displays illustrative nightly prices and town-level coordinates for the sample collection; confirm current prices and exact property addresses before using them for bookings.
+Booking requests store guest contact details and stay dates in PostgreSQL. The app does not track room inventory, confirm availability, collect payment, or expose a public endpoint for reading requests. Requests remain pending until the property confirms them directly; without an admin login, operators must review them through a restricted database connection:
+
+```sql
+SELECT id, hotel_title, guest_name, guest_email, check_in, check_out, guests, status, created_at
+FROM booking_requests
+ORDER BY created_at DESC;
+
+UPDATE booking_requests
+SET status = 'confirmed'
+WHERE id = 'request-uuid';
+```
+
+Use `declined` instead of `confirmed` when the property cannot accept a request. Keep database access restricted.
+
+The sample collection's nightly prices are illustrative and its coordinates are town-level, not exact property addresses. Verify prices, availability, and street addresses with each hotel before making travel plans.

@@ -1,0 +1,20 @@
+.detail-actions{display:flex;align-items:center;gap:10px}
+.detail-actions .submit-button,.detail-columns aside .submit-button,.booking-confirmation>.submit-button{display:inline-block;text-align:center}
+.booking-form{margin-top:0}
+.booking-estimate{margin:0;padding:12px;background:#f3f5f0;color:#5f685d;font-size:11px}
+.booking-estimate strong{color:#303a31}
+.booking-disclaimer{color:#777970;font-size:10px;line-height:1.7}
+.booking-confirmation{max-width:590px;margin:20px auto 0;padding:32px;background:#fff;border:1px solid #e8e8e1}
+.booking-confirmation h1{font:500 34px 'Playfair Display',serif;color:#29352b;margin:12px 0}
+.booking-confirmation>p{font-size:12px;line-height:1.7;color:#777970}
+.booking-confirmation dl{margin:24px 0;display:grid;gap:12px}
+.booking-confirmation dl div{display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #eae9e3;padding-bottom:10px}
+.booking-confirmation dt{font-size:11px;color:#777970}
+.booking-confirmation dd{margin:0;text-align:right;font-size:11px;color:#303a31;overflow-wrap:anywhere}
+.booking-confirmation .booking-disclaimer{margin:20px 0}
+@media(max-width:640px){
+  .detail-actions{align-items:flex-end;flex-direction:column}
+  .booking-confirmation{margin-top:20px;padding:24px 18px}
+  .booking-confirmation dl div{flex-direction:column;gap:5px}
+  .booking-confirmation dd{text-align:left}
+}

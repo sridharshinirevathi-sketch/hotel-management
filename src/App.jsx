@@ -4,6 +4,7 @@ import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { addHotel, deleteHotel, fetchHotels, updateHotel } from './hotelSlice'
 import './App.css'
+import './booking.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', price: '', image: '', location: '' }
@@ -136,6 +137,90 @@ function HotelForm() {
   </form></main></>
 }
 
+function BookingRequest() {
+  const { id } = useParams()
+  const hotel = useSelector(state => state.hotels.items.find(item => item.id === id))
+  const hotelsStatus = useSelector(state => state.hotels.status)
+  const hotelsError = useSelector(state => state.hotels.error)
+  const [form, setForm] = useState({ guestName: '', guestEmail: '', checkIn: '', checkOut: '', guests: '1' })
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)
+  const today = new Date()
+  const minimumDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const nights = form.checkIn && form.checkOut
+    ? (Date.parse(`${form.checkOut}T00:00:00Z`) - Date.parse(`${form.checkIn}T00:00:00Z`)) / 86400000
+    : 0
+
+  const change = (event) => setForm(current => ({ ...current, [event.target.name]: event.target.value }))
+  const submit = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, hotelId: id, guests: Number(form.guests) }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not send your booking request.')
+      setConfirmation(result)
+    } catch (bookingError) {
+      setError(bookingError.message || 'Could not send your booking request.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!hotel && ['idle', 'loading'].includes(hotelsStatus)) {
+    return <main className="form-wrap"><div className="empty-state"><h2>Loading hotel…</h2></div></main>
+  }
+  if (!hotel && hotelsStatus === 'failed') {
+    return <main className="form-wrap"><div className="empty-state" role="alert"><h2>Could not load hotel</h2><p>{hotelsError}</p><Link to="/">Return to stays</Link></div></main>
+  }
+  if (!hotel) {
+    return <main className="form-wrap"><div className="empty-state"><h2>Hotel not found</h2><Link to="/">Return to stays</Link></div></main>
+  }
+
+  if (confirmation) {
+    return <><Helmet><title>Request received | Havenstay</title></Helmet><main className="form-wrap">
+      <section className="booking-confirmation" role="status">
+        <span className="eyebrow">REQUEST RECEIVED</span>
+        <h1>Thanks, {form.guestName}.</h1>
+        <p>Your request for <strong>{hotel.title}</strong> is pending confirmation by the property. This is not a confirmed reservation.</p>
+        <dl>
+          <div><dt>Request reference</dt><dd>{confirmation.id}</dd></div>
+          <div><dt>Stay dates</dt><dd>{confirmation.checkIn} – {confirmation.checkOut} · {confirmation.nights} nights</dd></div>
+          <div><dt>Guests</dt><dd>{confirmation.guests}</dd></div>
+          <div><dt>Indicative stay estimate</dt><dd>{money(confirmation.estimatedTotal)}</dd></div>
+        </dl>
+        <p className="booking-disclaimer">No payment was collected. The nightly price is an unverified estimate; contact the hotel to confirm availability, exact rates, and booking details.</p>
+        <Link to="/" className="submit-button">Back to stays →</Link>
+      </section>
+    </main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+  }
+
+  return <><Helmet><title>Request a stay at {hotel.title} | Havenstay</title><meta name="description" content={`Send a booking request to ${hotel.title}.`} /></Helmet>
+    <main className="form-wrap">
+      <Link to={`/hotel/${hotel.id}`} className="back-link">← Back to {hotel.title}</Link>
+      <div className="form-heading"><span className="eyebrow">NO PAYMENT REQUIRED</span><h1>Request a stay</h1><p>{hotel.title} · {hotel.location}</p></div>
+      <form className="hotel-form booking-form" onSubmit={submit}>
+        <div className="form-row">
+          <label>Check-in<input type="date" name="checkIn" value={form.checkIn} onChange={change} min={minimumDate} required /></label>
+          <label>Check-out<input type="date" name="checkOut" value={form.checkOut} onChange={change} min={form.checkIn || minimumDate} required /></label>
+        </div>
+        <label>Number of guests<input type="number" name="guests" value={form.guests} onChange={change} min="1" max="20" step="1" required /></label>
+        {nights > 0 && <p className="booking-estimate">{nights} {nights === 1 ? 'night' : 'nights'} · indicative estimate: <strong>{money(hotel.price * nights)}</strong></p>}
+        <label>Your name<input name="guestName" value={form.guestName} onChange={change} maxLength="100" autoComplete="name" required /></label>
+        <label>Email address<input type="email" name="guestEmail" value={form.guestEmail} onChange={change} maxLength="254" autoComplete="email" required /></label>
+        <p className="booking-disclaimer">This sends a booking request only. Room inventory is not tracked, availability is not guaranteed, and the property must confirm the reservation and current price. No payment is collected.</p>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="form-actions"><Link to={`/hotel/${hotel.id}`} className="cancel-button">Cancel</Link><button type="submit" className="submit-button" disabled={saving}>{saving ? 'Sending…' : 'Send request'} <span>→</span></button></div>
+      </form>
+    </main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+}
+
 function Detail() {
   const { id } = useParams()
   const hotel = useSelector(state => state.hotels.items.find(item => item.id === id))
@@ -144,7 +229,7 @@ function Detail() {
   if (!hotel && ['idle', 'loading'].includes(hotelsStatus)) return <main className="form-wrap"><div className="empty-state"><h2>Loading hotel…</h2></div></main>
   if (!hotel && hotelsStatus === 'failed') return <main className="form-wrap"><div className="empty-state" role="alert"><h2>Could not load hotel</h2><p>{hotelsError}</p><Link to="/">Return to stays</Link></div></main>
   if (!hotel) return <main className="form-wrap"><div className="empty-state"><h2>Hotel not found</h2><Link to="/">Return to stays</Link></div></main>
-  return <><Helmet><title>{hotel.title} | Havenstay</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap"><Link to="/" className="back-link">← All stays</Link><div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link></div><img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} /><div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>APPROX. FROM</span><strong>{money(hotel.price)}</strong><span>per night · confirm with hotel</span><Link to="/" className="submit-button">Explore more stays →</Link></aside></div><h2 className="map-title">Explore {hotel.location}</h2><div className="map-frame"><iframe title={`Map showing ${hotel.location}`} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${hotel.longitude - 0.04}%2C${hotel.latitude - 0.025}%2C${hotel.longitude + 0.04}%2C${hotel.latitude + 0.025}&layer=mapnik&marker=${hotel.latitude}%2C${hotel.longitude}`} /><a href={`https://www.openstreetmap.org/?mlat=${hotel.latitude}&mlon=${hotel.longitude}#map=13/${hotel.latitude}/${hotel.longitude}`} target="_blank" rel="noreferrer">View larger map ↗</a></div></main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+  return <><Helmet><title>{hotel.title} | Havenstay</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap"><Link to="/" className="back-link">← All stays</Link><div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><div className="detail-actions"><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></div></div><img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} /><div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates only; this is not the property's street address: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>INDICATIVE PRICE</span><strong>{money(hotel.price)}</strong><span>approx. / night · confirm with hotel</span><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></aside></div><p className="booking-disclaimer">Prices and property details have not been independently verified. Contact the hotel directly to confirm exact address, availability, and current rates.</p><h2 className="map-title">Explore {hotel.location}</h2><div className="map-frame"><iframe title={`Map showing ${hotel.location}`} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${hotel.longitude - 0.04}%2C${hotel.latitude - 0.025}%2C${hotel.longitude + 0.04}%2C${hotel.latitude + 0.025}&layer=mapnik&marker=${hotel.latitude}%2C${hotel.longitude}`} /><a href={`https://www.openstreetmap.org/?mlat=${hotel.latitude}&mlon=${hotel.longitude}#map=13/${hotel.latitude}/${hotel.longitude}`} target="_blank" rel="noreferrer">View larger map ↗</a></div></main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
 }
 
 function App() {
@@ -154,7 +239,7 @@ function App() {
     if (hotelsStatus === 'idle') dispatch(fetchHotels())
   }, [dispatch, hotelsStatus])
 
-  return <div className="app-shell"><Header /><Routes><Route path="/" element={<Home />} /><Route path="/new" element={<HotelForm />} /><Route path="/edit/:id" element={<HotelForm />} /><Route path="/hotel/:id" element={<Detail />} /></Routes></div>
+  return <div className="app-shell"><Header /><Routes><Route path="/" element={<Home />} /><Route path="/new" element={<HotelForm />} /><Route path="/edit/:id" element={<HotelForm />} /><Route path="/hotel/:id" element={<Detail />} /><Route path="/book/:id" element={<BookingRequest />} /></Routes></div>
 }
 
 export default App

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { countNights, BookingValidationError, validateBookingInput } from './bookings.js'
 import { initializeDatabase, pool } from './db.js'
 
 const app = express()
@@ -82,6 +83,38 @@ app.get('/api/hotels', async (_request, response, next) => {
     const { rows } = await pool.query(`SELECT ${hotelColumns} FROM hotels ORDER BY created_at ASC, title ASC`)
     response.json(rows)
   } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/bookings', async (request, response, next) => {
+  try {
+    const booking = validateBookingInput(request.body)
+    const { rows: hotels } = await pool.query(
+      'SELECT title, location, price::float8 AS price FROM hotels WHERE id = $1',
+      [booking.hotelId],
+    )
+    if (hotels.length === 0) return response.status(404).json({ error: 'Hotel not found.' })
+
+    const hotel = hotels[0]
+    const id = randomUUID()
+    const { rows } = await pool.query(
+      `INSERT INTO booking_requests
+        (id, hotel_id, hotel_title, hotel_location, guest_name, guest_email, check_in, check_out, guests, price_per_night)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, hotel_title AS "hotelTitle", check_in AS "checkIn", check_out AS "checkOut",
+         guests, price_per_night::float8 AS "pricePerNight", status, created_at AS "createdAt"`,
+      [
+        id, booking.hotelId, hotel.title, hotel.location, booking.guestName,
+        booking.guestEmail, booking.checkIn, booking.checkOut, booking.guests, hotel.price,
+      ],
+    )
+    const nights = countNights(booking.checkIn, booking.checkOut)
+    response.status(201).json({ ...rows[0], nights, estimatedTotal: rows[0].pricePerNight * nights })
+  } catch (error) {
+    if (error instanceof BookingValidationError) {
+      return response.status(400).json({ error: error.message })
+    }
     next(error)
   }
 })
