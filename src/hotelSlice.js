@@ -115,8 +115,10 @@ export const initialHotels = listings.map(makeHotel)
 const apiRequest = async (path, options) => {
   const response = await fetch(path, options)
   if (response.status === 204) return null
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'The request could not be completed.')
+  const contentType = response.headers.get('content-type') || ''
+  const result = contentType.includes('application/json') ? await response.json() : null
+  if (!response.ok) throw new Error(result?.error || `The request could not be completed (HTTP ${response.status}).`)
+  if (result === null) throw new Error('The hotel service returned an invalid response.')
   return result
 }
 
@@ -142,7 +144,11 @@ const hotelSlice = createSlice({
     builder
       .addCase(fetchHotels.pending, state => { state.status = 'loading'; state.error = null })
       .addCase(fetchHotels.fulfilled, (state, action) => { state.items = action.payload; state.status = 'succeeded' })
-      .addCase(fetchHotels.rejected, (state, action) => { state.status = 'failed'; state.error = action.error.message || 'Could not load hotels.' })
+      .addCase(fetchHotels.rejected, (state, action) => {
+        if (state.items.length === 0) state.items = initialHotels
+        state.status = 'failed'
+        state.error = action.error.message || 'Could not load hotels.'
+      })
       .addCase(addHotel.fulfilled, (state, action) => { state.items.unshift(action.payload) })
       .addCase(updateHotel.fulfilled, (state, action) => {
         const index = state.items.findIndex(hotel => hotel.id === action.payload.id)

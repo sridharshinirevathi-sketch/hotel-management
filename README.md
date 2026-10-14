@@ -34,6 +34,14 @@ Hotel listings frontend built with React, Redux Toolkit, and Vite, backed by a N
 
 On first startup, Express creates the `hotels` table and inserts the built-in hotel collection only when the table is empty. Removing a seeded hotel will not cause it to be reinserted on later restarts.
 
+## Deploy to Render
+
+The root `render.yaml` defines a Node web service and a free Render Postgres database. In Render, choose **New → Blueprint**, connect this repository, review the services and free plans, and apply the Blueprint. Render supplies the database connection string to the web service; the API initializes its tables on startup. The Express service serves the built React app and its client-side routes, so deploy it as a **Web Service**, not as a Static Site.
+
+Render's free Postgres databases expire 30 days after creation and are deleted after the subsequent 14-day upgrade grace period. They have no backups and are for testing/hobby use, not production. Upgrade the database before expiry if its data needs to persist. Free web services may sleep when idle.
+
+Render free web services use an ephemeral filesystem. Hotel photos uploaded to `server/uploads` can disappear on restart, sleep, or redeploy; use persistent object storage if uploaded photos must remain available.
+
 ## Production
 
 Set `DATABASE_URL` (and `PGSSL=true` when required by the hosted PostgreSQL provider), build the frontend, then start Express:
