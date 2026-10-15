@@ -112,14 +112,27 @@ const makeHotel = ([title, location], index) => {
 
 export const initialHotels = listings.map(makeHotel)
 
+export async function readApiResponse(response, action = 'The hotel service') {
+  if (response.status === 204) return null
+  const body = await response.text()
+  let result = null
+  if (body.trim()) {
+    try {
+      result = JSON.parse(body)
+    } catch {
+      if (response.ok) throw new Error(`${action} returned an invalid response (HTTP ${response.status}).`)
+    }
+  }
+  if (!response.ok) {
+    throw new Error(result?.error || `${action} failed (HTTP ${response.status}).`)
+  }
+  if (result === null) throw new Error(`${action} returned an empty response (HTTP ${response.status}).`)
+  return result
+}
+
 const apiRequest = async (path, options) => {
   const response = await fetch(path, options)
-  if (response.status === 204) return null
-  const contentType = response.headers.get('content-type') || ''
-  const result = contentType.includes('application/json') ? await response.json() : null
-  if (!response.ok) throw new Error(result?.error || `The request could not be completed (HTTP ${response.status}).`)
-  if (result === null) throw new Error('The hotel service returned an invalid response.')
-  return result
+  return readApiResponse(response)
 }
 
 export const fetchHotels = createAsyncThunk(

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import hotelReducer, { fetchHotels, initialHotels } from './hotelSlice.js'
+import hotelReducer, { fetchHotels, initialHotels, readApiResponse } from './hotelSlice.js'
 
 test('shows the sample hotel collection when the hotel service is unavailable', () => {
   const state = hotelReducer(undefined, fetchHotels.rejected(new Error('Service unavailable'), 'request-id'))
@@ -19,4 +19,21 @@ test('keeps loaded hotels when a later refresh fails', () => {
   )
 
   assert.deepEqual(state.items, [loadedHotel])
+})
+
+test('reports an empty successful API response without a JSON parsing error', async () => {
+  await assert.rejects(
+    readApiResponse(new Response('', { status: 200 }), 'Hotel photo upload'),
+    /Hotel photo upload returned an empty response \(HTTP 200\)\./,
+  )
+})
+
+test('uses the server error when an API request fails', async () => {
+  await assert.rejects(
+    readApiResponse(new Response(JSON.stringify({ error: 'Database unavailable.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    }), 'Hotel photo upload'),
+    /Database unavailable\./,
+  )
 })

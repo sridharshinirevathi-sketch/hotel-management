@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { addHotel, deleteHotel, fetchHotels, updateHotel } from './hotelSlice'
+import { addHotel, deleteHotel, fetchHotels, readApiResponse, updateHotel } from './hotelSlice'
 import './App.css'
 import './booking.css'
 
@@ -104,8 +104,7 @@ function HotelForm() {
         const body = new FormData()
         body.append('image', pendingImage)
         const response = await fetch('/api/uploads', { method: 'POST', body })
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Could not upload hotel photo.')
+        const result = await readApiResponse(response, 'Hotel photo upload')
         image = result.url
       }
       const record = {
