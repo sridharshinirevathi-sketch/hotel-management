@@ -80,7 +80,7 @@ app.get('/api/health', async (_request, response, next) => {
 
 app.get('/api/hotels', async (_request, response, next) => {
   try {
-    const { rows } = await pool.query(`SELECT ${hotelColumns} FROM hotels ORDER BY created_at ASC, title ASC`)
+    const { rows } = await pool.query(`SELECT ${hotelColumns} FROM hotels ORDER BY created_at DESC, title ASC`)
     response.json(rows)
   } catch (error) {
     next(error)
