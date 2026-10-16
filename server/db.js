@@ -27,12 +27,24 @@ export async function initializeDatabase() {
       description VARCHAR(800) NOT NULL,
       latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
       longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+      coordinates_are_exact BOOLEAN NOT NULL DEFAULT FALSE,
       price NUMERIC(12, 2) NOT NULL CHECK (price > 0),
       image TEXT NOT NULL,
       image_is_verified BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+  await pool.query('ALTER TABLE hotels ADD COLUMN IF NOT EXISTS coordinates_are_exact BOOLEAN NOT NULL DEFAULT FALSE')
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS hotel_rooms (
+      id UUID PRIMARY KEY,
+      hotel_id TEXT NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+      room_type VARCHAR(80) NOT NULL,
+      price NUMERIC(12, 2) NOT NULL CHECK (price > 0),
+      available_count SMALLINT NOT NULL CHECK (available_count BETWEEN 0 AND 32767)
+    )
+  `)
+  await pool.query('CREATE INDEX IF NOT EXISTS hotel_rooms_hotel_price_idx ON hotel_rooms (hotel_id, price)')
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS booking_requests (

@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { countNights, BookingValidationError, validateBookingInput } from './bookings.js'
 import { initializeDatabase, pool } from './db.js'
+import { HotelRoomsValidationError, validateRooms } from './hotel-rooms.js'
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
@@ -53,7 +54,16 @@ const upload = multer({
 
 const hotelColumns = `
   id, title, location, description, latitude, longitude, price::float8 AS price,
-  image, image_is_verified AS "imageIsVerified"
+  coordinates_are_exact AS "coordinatesAreExact", image, image_is_verified AS "imageIsVerified",
+  COALESCE((
+    SELECT json_agg(json_build_object(
+      'id', room.id,
+      'roomType', room.room_type,
+      'price', room.price::float8,
+      'availableCount', room.available_count
+    ) ORDER BY room.price)
+    FROM hotel_rooms room WHERE room.hotel_id = hotels.id
+  ), '[]'::json) AS rooms
 `
 
 class HotelValidationError extends Error {}
@@ -70,6 +80,8 @@ function validateHotel(input) {
   const latitude = Number(input.latitude)
   const longitude = Number(input.longitude)
   const price = Number(input.price)
+  const coordinatesAreExact = input.coordinatesAreExact === true
+  const rooms = validateRooms(input.rooms)
 
   if (!title || title.length > 100) throw new HotelValidationError('Hotel name is required and must be 100 characters or fewer.')
   if (!location || location.length > 200) throw new HotelValidationError('Location is required and must be 200 characters or fewer.')
@@ -81,7 +93,17 @@ function validateHotel(input) {
     throw new HotelValidationError('Hotel photo must be an uploaded image or an HTTPS image URL.')
   }
 
-  return { title, location, description, latitude, longitude, price, image, imageIsVerified: input.imageIsVerified === true }
+  return { title, location, description, latitude, longitude, coordinatesAreExact, price, image, imageIsVerified: input.imageIsVerified === true, rooms }
+}
+
+async function saveHotelRooms(client, hotelId, rooms) {
+  await client.query('DELETE FROM hotel_rooms WHERE hotel_id = $1', [hotelId])
+  for (const room of rooms) {
+    await client.query(
+      'INSERT INTO hotel_rooms (id, hotel_id, room_type, price, available_count) VALUES ($1, $2, $3, $4, $5)',
+      [randomUUID(), hotelId, room.roomType, room.price, room.availableCount],
+    )
+  }
 }
 
 app.get('/api/health', async (_request, response, next) => {
@@ -135,42 +157,73 @@ app.post('/api/bookings', async (request, response, next) => {
 })
 
 app.post('/api/hotels', async (request, response, next) => {
+  const client = await pool.connect()
+  let transactionStarted = false
   try {
     const hotel = validateHotel(request.body)
     const id = randomUUID()
-    const { rows } = await pool.query(
-      `INSERT INTO hotels (id, title, location, description, latitude, longitude, price, image, image_is_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING ${hotelColumns}`,
-      [id, hotel.title, hotel.location, hotel.description, hotel.latitude, hotel.longitude, hotel.price, hotel.image, hotel.imageIsVerified],
+    await client.query('BEGIN')
+    transactionStarted = true
+    await client.query(
+      `INSERT INTO hotels (id, title, location, description, latitude, longitude, coordinates_are_exact, price, image, image_is_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, hotel.title, hotel.location, hotel.description, hotel.latitude, hotel.longitude, hotel.coordinatesAreExact, hotel.price, hotel.image, hotel.imageIsVerified],
     )
+    await saveHotelRooms(client, id, hotel.rooms)
+    await client.query('COMMIT')
+    transactionStarted = false
+    const { rows } = await client.query(`SELECT ${hotelColumns} FROM hotels WHERE id = $1`, [id])
     response.status(201).json(rows[0])
   } catch (error) {
+    if (transactionStarted) await client.query('ROLLBACK')
     if (error instanceof HotelValidationError) {
       return response.status(400).json({ error: error.message })
     }
+    if (error instanceof HotelRoomsValidationError) {
+      return response.status(400).json({ error: error.message })
+    }
     next(error)
+  } finally {
+    client.release()
   }
 })
 
 app.put('/api/hotels/:id', async (request, response, next) => {
+  const client = await pool.connect()
+  let transactionStarted = false
   try {
     const hotel = validateHotel(request.body)
-    const { rows } = await pool.query(
+    await client.query('BEGIN')
+    transactionStarted = true
+    const { rows } = await client.query(
       `UPDATE hotels
        SET title = $2, location = $3, description = $4, latitude = $5, longitude = $6,
-           price = $7, image = $8, image_is_verified = $9
+           coordinates_are_exact = $7, price = $8, image = $9, image_is_verified = $10
        WHERE id = $1
-       RETURNING ${hotelColumns}`,
-      [request.params.id, hotel.title, hotel.location, hotel.description, hotel.latitude, hotel.longitude, hotel.price, hotel.image, hotel.imageIsVerified],
+       RETURNING id`,
+      [request.params.id, hotel.title, hotel.location, hotel.description, hotel.latitude, hotel.longitude, hotel.coordinatesAreExact, hotel.price, hotel.image, hotel.imageIsVerified],
     )
-    if (rows.length === 0) return response.status(404).json({ error: 'Hotel not found.' })
-    response.json(rows[0])
+    if (rows.length === 0) {
+      await client.query('ROLLBACK')
+      transactionStarted = false
+      return response.status(404).json({ error: 'Hotel not found.' })
+    }
+    await saveHotelRooms(client, request.params.id, hotel.rooms)
+    await client.query('COMMIT')
+    transactionStarted = false
+    const { rows: updated } = await client.query(`SELECT ${hotelColumns} FROM hotels WHERE id = $1`, [request.params.id])
+    response.json(updated[0])
   } catch (error) {
+    if (transactionStarted) await client.query('ROLLBACK')
     if (error instanceof HotelValidationError) {
       return response.status(400).json({ error: error.message })
     }
+    if (error instanceof HotelRoomsValidationError) {
+      return response.status(400).json({ error: error.message })
+    }
     next(error)
+  } finally {
+    client.release()
   }
 })
 

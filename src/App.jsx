@@ -8,7 +8,7 @@ import './App.css'
 import './booking.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
-const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', price: '', image: '', location: '' }
+const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', coordinatesAreExact: false, rooms: [], price: '', image: '', location: '' }
 const HOTELS_PER_PAGE = 12
 
 function Header() {
@@ -16,10 +16,13 @@ function Header() {
 }
 
 function HotelCard({ hotel, onDelete }) {
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${hotel.title}, ${hotel.location}`)}`
+  const destination = hotel.coordinatesAreExact
+    ? `${hotel.latitude},${hotel.longitude}`
+    : `${hotel.title}, ${hotel.location}`
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent('My Location')}&destination=${encodeURIComponent(destination)}&travelmode=driving`
   return <article className="hotel-card">
     <Link to={`/hotel/${hotel.id}`} className="card-photo"><img src={hotel.image} alt={`${hotel.title} in ${hotel.location}`} /><span className="photo-tag">{hotel.imageIsVerified ? 'HOTEL PHOTO' : 'REPRESENTATIVE PHOTO'}</span></Link>
-    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><div className="card-location-row"><p className="location-label">{hotel.location}</p><a className="directions-link" href={directionsUrl} target="_blank" rel="noreferrer" aria-label={`Get directions to ${hotel.title}`}>Directions ↗</a></div><p className="description-snippet">{hotel.description}</p><div className="card-footer"><span><strong>{money(hotel.price)}</strong> <span className="night">approx. / night</span></span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
+    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><div className="card-location-row"><a href={directionsUrl} target="_blank" rel="noreferrer" className="location-label" aria-label={`Open directions to ${hotel.title}`}>{hotel.location}</a><a className="directions-link" href={directionsUrl} target="_blank" rel="noreferrer" aria-label={`Get live directions to ${hotel.title}`}>Directions ↗</a></div><p className="description-snippet">{hotel.description}</p>{hotel.availableRooms.length ? <div className="room-offers"><strong>Rooms reported available</strong>{hotel.availableRooms.map(room => <div className="room-offer" key={room.id || `${room.roomType}-${room.price}`}><span>{room.roomType} · {room.availableCount} left</span><strong>{money(room.price)}<small> / night</small></strong></div>)}</div> : <p className="room-availability-note">{hotel.rooms?.length ? 'No rooms currently reported as available.' : 'Room availability has not been added yet.'}</p>}<div className="card-footer"><span><strong>{money(hotel.price)}</strong> <span className="night">reference / night</span></span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
   </article>
 }
 
@@ -33,10 +36,16 @@ function Home() {
   const [max, setMax] = useState('')
   const [notice, setNotice] = useState('')
   const [page, setPage] = useState(1)
-  const filtered = useMemo(() => hotels.filter(h =>
-    (h.title.toLowerCase().includes(query.toLowerCase()) || h.location.toLowerCase().includes(query.toLowerCase())) &&
-    (min === '' || h.price >= Number(min)) &&
-    (max === '' || h.price <= Number(max))), [hotels, query, min, max])
+  const priceFilterActive = min !== '' || max !== ''
+  const filtered = useMemo(() => hotels.map(hotel => ({
+    ...hotel,
+    availableRooms: (hotel.rooms || []).filter(room =>
+      room.availableCount > 0 &&
+      (min === '' || room.price >= Number(min)) &&
+      (max === '' || room.price <= Number(max))),
+  })).filter(hotel =>
+    (hotel.title.toLowerCase().includes(query.toLowerCase()) || hotel.location.toLowerCase().includes(query.toLowerCase())) &&
+    (!priceFilterActive || hotel.availableRooms.length > 0)), [hotels, query, min, max, priceFilterActive])
   const pageCount = Math.ceil(filtered.length / HOTELS_PER_PAGE)
   const currentPage = Math.min(page, Math.max(pageCount, 1))
   const pageHotels = filtered.slice((currentPage - 1) * HOTELS_PER_PAGE, currentPage * HOTELS_PER_PAGE)
@@ -55,8 +64,8 @@ function Home() {
   }
   return <><Helmet><title>Tamilnadu Hotel Collections | Havenstay</title><meta name="description" content="Browse hotel collections and find memorable stays across Tamil Nadu." /></Helmet><main>
     <section className="hero"><div className="hero-copy"><span className="eyebrow">WELCOME TO</span><h1>Tamilnadu Hotel <em>Collections</em></h1><p>Discover memorable stays across Tamil Nadu.<br />Find your perfect place to stay.</p><a href="#stays" className="hero-button">Explore stays <span>↘</span></a></div></section>
-    <section className="listing" id="stays"><div className="section-head"><div><h2>Places to stay</h2></div><p>Approximate nightly prices in INR.<br />Confirm current rates with the hotel.</p></div>
-      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Price per night</span><label><span className="sr-only">Minimum price</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum price</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
+    <section className="listing" id="stays"><div className="section-head"><div><h2>Places to stay</h2></div><p>Search nightly room rates in INR.<br />Availability is reported by each listing.</p></div>
+      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Available room rate</span><label><span className="sr-only">Minimum room rate</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum room rate</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
       {status === 'failed' && hotels.length > 0 && <div className="service-notice" role="alert"><span>Showing sample listings because the hotel service is unavailable. Changes and booking requests need a working backend and database.</span><button onClick={() => dispatch(fetchHotels())}>Retry connection</button></div>}
       <div className="results-line"><span>{filtered.length} stays to inspire your next trip</span><span>Sort by <strong>Recommended⌄</strong></span></div>
       {status === 'loading' && hotels.length === 0 ? <div className="empty-state"><h3>Loading hotels…</h3></div>
@@ -82,7 +91,21 @@ function HotelForm() {
   useEffect(() => () => {
     if (imagePreview) URL.revokeObjectURL(imagePreview)
   }, [imagePreview])
-  const change = (event) => setForm(current => ({ ...(current || hotel || emptyHotelForm), [event.target.name]: event.target.value }))
+  const change = (event) => setForm(current => ({ ...(current || hotel || emptyHotelForm), [event.target.name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value }))
+  const changeRoom = (index, name, value) => setForm(current => {
+    const next = current || hotel || emptyHotelForm
+    const rooms = [...(next.rooms || [])]
+    rooms[index] = { ...rooms[index], [name]: value }
+    return { ...next, rooms }
+  })
+  const addRoom = () => setForm(current => {
+    const next = current || hotel || emptyHotelForm
+    return { ...next, rooms: [...(next.rooms || []), { roomType: '', price: '', availableCount: '1' }] }
+  })
+  const removeRoom = (index) => setForm(current => {
+    const next = current || hotel || emptyHotelForm
+    return { ...next, rooms: (next.rooms || []).filter((_, roomIndex) => roomIndex !== index) }
+  })
   const imageChange = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -106,6 +129,12 @@ function HotelForm() {
     if (currentForm.latitude === '' || Number(currentForm.latitude) < -90 || Number(currentForm.latitude) > 90 || currentForm.longitude === '' || Number(currentForm.longitude) < -180 || Number(currentForm.longitude) > 180) return setError('Enter valid latitude (−90 to 90) and longitude (−180 to 180).')
     if (!currentForm.price || Number(currentForm.price) <= 0) return setError('Price must be greater than zero.')
     if (!currentForm.location.trim()) return setError('Enter the hotel location.')
+    if ((currentForm.rooms || []).length > 20) return setError('You can add up to 20 room types.')
+    for (const [index, room] of (currentForm.rooms || []).entries()) {
+      if (!room.roomType.trim()) return setError(`Enter a name for room type ${index + 1}.`)
+      if (!room.price || Number(room.price) <= 0) return setError(`Enter a valid nightly rate for room type ${index + 1}.`)
+      if (room.availableCount === '' || !Number.isInteger(Number(room.availableCount)) || Number(room.availableCount) < 0) return setError(`Enter a valid available room count for room type ${index + 1}.`)
+    }
     setSaving(true)
     setError('')
     try {
@@ -124,6 +153,8 @@ function HotelForm() {
         price: Number(currentForm.price),
         latitude: Number(currentForm.latitude),
         longitude: Number(currentForm.longitude),
+        coordinatesAreExact: Boolean(currentForm.coordinatesAreExact),
+        rooms: (currentForm.rooms || []).map(room => ({ ...room, roomType: room.roomType.trim(), price: Number(room.price), availableCount: Number(room.availableCount) })),
       }
       await dispatch(id ? updateHotel({ ...record, id }) : addHotel(record)).unwrap()
       navigate('/')
@@ -139,10 +170,12 @@ function HotelForm() {
   return <><Helmet><title>{id ? 'Edit stay' : 'Add a stay'} | Havenstay</title><meta name="description" content="Manage hotel stay details on Havenstay." /></Helmet><main className="form-wrap"><Link to="/" className="back-link">← Back to stays</Link><div className="form-heading"><span className="eyebrow">{id ? 'UPDATE YOUR LISTING' : 'GROW THE COLLECTION'}</span><h1>{id ? 'Edit your stay' : 'Add a new stay'}</h1><p>Share the details that help travelers find their perfect place.</p></div><form className="hotel-form" onSubmit={submit}>
     <label className="upload-box">{imagePreview || currentForm.image ? <img className="preview" src={imagePreview || currentForm.image} alt="Hotel upload preview" /> : <span className="upload-icon">↑</span>}<strong>{imagePreview || currentForm.image ? 'Change photo' : 'Upload a hotel photo'}</strong><small>JPG, PNG, or WebP · Up to 5 MB</small><input type="file" accept="image/jpeg,image/png,image/webp" onChange={imageChange} /></label>
     <label>Hotel name<input name="title" value={currentForm.title} onChange={change} required maxLength="100" placeholder="e.g. The Shoreline House" /></label>
-    <label>Location<input name="location" value={currentForm.location} onChange={change} required maxLength="200" placeholder="e.g. Coimbatore, Tamil Nadu" /></label>
+    <label>Hotel address or location<input name="location" value={currentForm.location} onChange={change} required maxLength="200" placeholder="Hotel address, area, city" /></label>
     <label>Description<textarea name="description" value={currentForm.description} onChange={change} required rows="4" maxLength="800" placeholder="What makes this stay special?" /></label>
     <div className="form-row"><label>Latitude<input type="number" name="latitude" value={currentForm.latitude} onChange={change} required step="any" min="-90" max="90" placeholder="−90 to 90" /></label><label>Longitude<input type="number" name="longitude" value={currentForm.longitude} onChange={change} required step="any" min="-180" max="180" placeholder="−180 to 180" /></label></div>
-    <label>Approx. price per night (INR)<input type="number" name="price" value={currentForm.price} onChange={change} required min="1" step="1" placeholder="e.g. 6500" /></label>
+    <label className="exact-location-check"><input type="checkbox" name="coordinatesAreExact" checked={Boolean(currentForm.coordinatesAreExact)} onChange={change} /> These coordinates are the exact hotel pin</label>
+    <section className="room-editor"><div className="room-editor-heading"><div><strong>Room rates and availability</strong><small>Only rooms with a reported count above zero appear in price search.</small></div><button type="button" onClick={addRoom} disabled={(currentForm.rooms || []).length >= 20}>＋ Add room type</button></div>{(currentForm.rooms || []).map((room, index) => <div className="room-editor-row" key={room.id || index}><label>Room type<input value={room.roomType} onChange={event => changeRoom(index, 'roomType', event.target.value)} maxLength="80" placeholder="e.g. Deluxe double" /></label><label>Rate / night (₹)<input type="number" value={room.price} onChange={event => changeRoom(index, 'price', event.target.value)} min="1" step="1" /></label><label>Available rooms<input type="number" value={room.availableCount} onChange={event => changeRoom(index, 'availableCount', event.target.value)} min="0" step="1" /></label><button type="button" className="remove-room" onClick={() => removeRoom(index)} aria-label={`Remove room type ${index + 1}`}>Remove</button></div>)}{!(currentForm.rooms || []).length && <p className="no-rooms-note">No room rates added. Add room types to make this hotel searchable by available room price.</p>}</section>
+    <label>Reference price per night (INR)<input type="number" name="price" value={currentForm.price} onChange={change} required min="1" step="1" placeholder="e.g. 6500" /></label>
     {error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><Link to="/" className="cancel-button">Cancel</Link><button type="submit" className="submit-button" disabled={saving}>{saving ? 'Saving…' : id ? 'Save changes' : 'Add hotel'} <span>→</span></button></div>
   </form></main></>
 }

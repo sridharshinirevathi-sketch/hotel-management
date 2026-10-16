@@ -7,6 +7,28 @@
 .card-location-row .location-label{margin-bottom:0}
 .directions-link{flex:none;color:#52664f;font-size:9px;font-weight:600}
 .directions-link:hover{text-decoration:underline}
+.location-label:hover{color:#52664f;text-decoration:underline}
+.room-offers{margin-top:10px;padding:9px;background:#f5f6f1}
+.room-offers>strong{display:block;margin-bottom:5px;color:#596652;font-size:9px}
+.room-offer{display:flex;justify-content:space-between;gap:8px;padding:4px 0;color:#63675f;font-size:9px}
+.room-offer>strong{flex:none;color:#303a31}
+.room-offer small{font-size:8px;font-weight:400;color:#898a83}
+.room-availability-note{margin:10px 0 0;color:#898a83;font-size:9px}
+.exact-location-check{display:flex;align-items:center;gap:8px;color:#53634e;font-size:10px}
+.exact-location-check input{accent-color:#465c49}
+.room-editor{display:grid;gap:12px;padding:14px;border:1px solid #e6e7df;background:#fbfcf9}
+.room-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.room-editor-heading>div{display:grid;gap:4px}
+.room-editor-heading strong{font-size:11px;color:#39453a}
+.room-editor-heading small,.no-rooms-note{font-size:9px;color:#85877e}
+.room-editor-heading button,.remove-room{border:1px solid #dce1d8;background:#fff;color:#52664f;padding:7px 9px;font-size:9px}
+.room-editor-heading button:disabled{opacity:.45;cursor:default}
+.room-editor-row{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;align-items:end;gap:8px;padding-top:11px;border-top:1px solid #e8e9e3}
+.room-editor-row label{display:grid;gap:5px;color:#596256;font-size:9px}
+.room-editor-row input{width:100%;min-width:0;border:1px solid #e2e3dc;background:#fff;padding:9px;font-size:10px}
+.remove-room{color:#9a6c61}
+.no-rooms-note{margin:0}
+@media(max-width:600px){.room-editor-row{grid-template-columns:1fr 1fr}.room-editor-row label:first-child{grid-column:1/-1}.room-editor-heading{align-items:start}.room-editor-heading small{line-height:1.5}}
 .booking-disclaimer{color:#777970;font-size:10px;line-height:1.7}
 .booking-confirmation{max-width:590px;margin:20px auto 0;padding:32px;background:#fff;border:1px solid #e8e8e1}
 .booking-confirmation h1{font:500 34px 'Playfair Display',serif;color:#29352b;margin:12px 0}

@@ -105,6 +105,8 @@ const makeHotel = ([title, location], index) => {
     description: `${title} is located in ${location}, Tamil Nadu. Explore the property's facilities, nearby attractions, and current availability before booking.`,
     latitude: destination.latitude,
     longitude: destination.longitude,
+    coordinatesAreExact: false,
+    rooms: [],
     price: destination.price + (index % 5) * 500,
     image: image || `https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1000&q=80&sig=${index}`,
     imageIsVerified: Boolean(image),
