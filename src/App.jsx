@@ -9,7 +9,7 @@ import './booking.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', price: '', image: '', location: '' }
-const HOTELS_PER_PAGE = 6
+const HOTELS_PER_PAGE = 3
 
 function Header() {
   return <header className="topbar"><Link className="brand" to="/"><span className="brand-mark">H</span><span>haven<span className="brand-light">stay</span></span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
