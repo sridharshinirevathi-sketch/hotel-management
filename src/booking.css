@@ -3,6 +3,10 @@
 .booking-form{margin-top:0}
 .booking-estimate{margin:0;padding:12px;background:#f3f5f0;color:#5f685d;font-size:11px}
 .booking-estimate strong{color:#303a31}
+.card-location-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-location-row .location-label{margin-bottom:0}
+.directions-link{flex:none;color:#52664f;font-size:9px;font-weight:600}
+.directions-link:hover{text-decoration:underline}
 .booking-disclaimer{color:#777970;font-size:10px;line-height:1.7}
 .booking-confirmation{max-width:590px;margin:20px auto 0;padding:32px;background:#fff;border:1px solid #e8e8e1}
 .booking-confirmation h1{font:500 34px 'Playfair Display',serif;color:#29352b;margin:12px 0}

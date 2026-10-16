@@ -9,16 +9,17 @@ import './booking.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', price: '', image: '', location: '' }
-const HOTELS_PER_PAGE = 3
+const HOTELS_PER_PAGE = 12
 
 function Header() {
   return <header className="topbar"><Link className="brand" to="/"><span className="brand-mark">H</span><span>haven<span className="brand-light">stay</span></span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
 }
 
 function HotelCard({ hotel, onDelete }) {
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${hotel.title}, ${hotel.location}`)}`
   return <article className="hotel-card">
     <Link to={`/hotel/${hotel.id}`} className="card-photo"><img src={hotel.image} alt={`${hotel.title} in ${hotel.location}`} /><span className="photo-tag">{hotel.imageIsVerified ? 'HOTEL PHOTO' : 'REPRESENTATIVE PHOTO'}</span></Link>
-    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><p className="location-label">{hotel.location}</p><p className="description-snippet">{hotel.description}</p><div className="card-footer"><span><strong>{money(hotel.price)}</strong> <span className="night">approx. / night</span></span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
+    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><div className="card-location-row"><p className="location-label">{hotel.location}</p><a className="directions-link" href={directionsUrl} target="_blank" rel="noreferrer" aria-label={`Get directions to ${hotel.title}`}>Directions ↗</a></div><p className="description-snippet">{hotel.description}</p><div className="card-footer"><span><strong>{money(hotel.price)}</strong> <span className="night">approx. / night</span></span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
   </article>
 }
 
