@@ -4,3 +4,25 @@
 @media(max-width:600px){.topbar{height:62px;padding:0 18px}.topbar nav{display:none}.brand{font-size:18px}.host-link{padding:8px 10px}.host-link span{font-size:10px}.hero{margin:0 18px;height:auto;display:flex;flex-direction:column;align-items:stretch;padding:35px 0 42px}.hero-copy{padding:0 8px 25px}.hero h1{font-size:51px;margin:15px 0 11px}.hero-image{height:245px}.hero-index{left:8px;bottom:10px}.listing{padding:34px 18px 45px}.section-head h2{font-size:27px}.section-head>p{font-size:10px}.filters{height:auto;min-height:50px;flex-wrap:wrap;padding:8px 10px;gap:8px}.search-box{flex-basis:100%;height:31px}.price-filter{flex:1;border-left:0;border-top:1px solid #e8e7e0;padding:8px 0 0;gap:6px}.price-filter label{width:55px}.filter-reset{border-top:1px solid #e8e7e0;padding-top:9px}.results-line{font-size:9px}.hotel-grid{grid-template-columns:1fr;gap:15px}.card-photo{height:225px}.card-content{padding:13px}.description-snippet{min-height:0}.pagination{margin-top:25px}footer{height:auto;min-height:66px;padding:14px 18px;gap:10px;flex-wrap:wrap;font-size:9px}footer span:nth-child(2){display:none}.form-wrap,.detail-wrap{padding:25px 18px 45px}.form-heading{margin:30px 0 20px}.form-heading h1{font-size:34px}.hotel-form{padding:20px 16px;gap:13px}.form-row{gap:9px}.detail-title{align-items:start;gap:12px}.detail-title h1{font-size:31px}.detail-title p{font-size:10px}.edit-detail{white-space:nowrap}.detail-image{height:270px}.detail-columns{grid-template-columns:1fr;gap:20px;padding:24px 0}.detail-columns aside{max-width:none}.map-frame{height:260px}}
 .service-notice{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:11px 13px;border:1px solid #e5d8b8;background:#fbf7ec;color:#665a3d;font-size:11px;line-height:1.5}.service-notice button{flex-shrink:0;border:0;background:none;color:#465c49;text-decoration:underline;font-size:10px}
 .collection-badge{display:inline-flex;align-items:center;padding:9px 14px;border-radius:4px;background:linear-gradient(115deg,#304b3c,#647b57);box-shadow:0 4px 12px #304b3c26;color:#fff;font-size:11px;font-weight:800;letter-spacing:1.5px}
+.hero{grid-template-columns:1fr}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+:root,body,.app-shell{background:#000;color:#f5f5f2}
+.topbar,footer{background:#000;border-color:#292929}
+.brand,.host-link,.hero h1,.section-head h2,.detail-columns h2,.map-title,.detail-title h1,.card-title-line h3,.card-footer strong,.empty-state h3,.form-heading h1,.booking-confirmation h1{color:#f5f5f2}
+.brand-light,.topbar nav,.hero-copy>p,.section-head>p,.results-line,.location-label,.description-snippet,.night,.booking-disclaimer,.booking-confirmation>p,.booking-confirmation dt{color:#b8b8b0}
+.hero h1 em{color:#a8b99f}
+.host-link,.filters,.hotel-card,.hotel-form,.booking-confirmation{background:#111;border-color:#303030}
+.listing{background:#080808}
+.filters{border-color:#303030}
+.search-box input,.price-filter input,.hotel-form input:not([type=file]),.hotel-form textarea,.booking-confirmation dd{color:#f2f2ed}
+.hotel-form input:not([type=file]),.hotel-form textarea{background:#181818;border-color:#383838}
+.upload-box{background:#171917;border-color:#454b43}
+.upload-box:has(.preview) strong,.upload-box:has(.preview) small{background:#111e}
+.card-footer,.booking-confirmation dl div{border-color:#303030}
+.empty-state{color:#b8b8b0}
+.empty-state p{color:#b8b8b0}
+.detail-title p,.coordinates{color:#b8b8b0}
+.booking-estimate{background:#171917;color:#c5c9c0}
+.booking-estimate strong{color:#f2f2ed}
+.photo-tag{background:#111d;color:#f2f2ed}
+.topbar nav,.host-link,.back-link,.form-heading p,.hotel-form>label:not(.upload-box),.form-row label,.upload-box,.upload-box small,.cancel-button,.detail-title p,.edit-detail,.coordinates{color:#c5c9c0}
