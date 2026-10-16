@@ -10,6 +10,10 @@ import { initializeDatabase, pool } from './db.js'
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
+const frontendOrigins = new Set((process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(origin => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean))
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(rootDir, 'uploads')
 const frontendDist = path.resolve(rootDir, '../dist')
@@ -21,6 +25,17 @@ const mimeExtensions = new Map([
 
 await mkdir(uploadsDir, { recursive: true })
 app.disable('x-powered-by')
+app.use((request, response, next) => {
+  const origin = request.get('Origin')
+  if (origin && frontendOrigins.has(origin.replace(/\/+$/, ''))) {
+    response.setHeader('Access-Control-Allow-Origin', origin)
+    response.setHeader('Vary', 'Origin')
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  }
+  if (request.method === 'OPTIONS') return response.sendStatus(204)
+  next()
+})
 app.use(express.json({ limit: '100kb' }))
 app.use('/uploads', express.static(uploadsDir, { dotfiles: 'deny', index: false }))
 

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { addHotel, deleteHotel, fetchHotels, readApiResponse, updateHotel } from './hotelSlice'
+import { apiUrl } from './api.js'
 import './App.css'
 import './booking.css'
 
@@ -103,9 +104,9 @@ function HotelForm() {
       if (pendingImage) {
         const body = new FormData()
         body.append('image', pendingImage)
-        const response = await fetch('/api/uploads', { method: 'POST', body })
+        const response = await fetch(apiUrl('/api/uploads'), { method: 'POST', body })
         const result = await readApiResponse(response, 'Hotel photo upload')
-        image = result.url
+        image = apiUrl(result.url)
       }
       const record = {
         ...currentForm,
@@ -158,7 +159,7 @@ function BookingRequest() {
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('/api/bookings', {
+      const response = await fetch(apiUrl('/api/bookings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, hotelId: id, guests: Number(form.guests) }),

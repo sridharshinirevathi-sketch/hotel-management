@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { apiUrl } from './api.js'
 
 const destinations = {
   Chennai: { latitude: 13.0827, longitude: 80.2707, price: 8500 },
@@ -135,7 +136,7 @@ export async function readApiResponse(response, action = 'The hotel service') {
 }
 
 const apiRequest = async (path, options) => {
-  const response = await fetch(path, options)
+  const response = await fetch(apiUrl(path), options)
   return readApiResponse(response)
 }
 

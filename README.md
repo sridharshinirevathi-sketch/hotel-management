@@ -21,6 +21,8 @@ Hotel listings frontend built with React, Redux Toolkit, and Vite, backed by a N
    DATABASE_URL=postgresql://postgres:your_password@localhost:5432/hotel_management
    PORT=3000
    PGSSL=false
+   VITE_API_URL=
+   FRONTEND_URL=http://localhost:5173
    ```
 
 3. Install dependencies and start both the API and frontend:
@@ -31,6 +33,8 @@ Hotel listings frontend built with React, Redux Toolkit, and Vite, backed by a N
    ```
 
    Vite runs the frontend at `http://localhost:5173` and proxies `/api` and `/uploads` to Express at `http://localhost:3000`.
+
+For separate Render frontend and backend services, set `VITE_API_URL` on the frontend service to the backend's public base URL (for example, `https://your-api.onrender.com`). Set `FRONTEND_URL` on the backend service to the frontend's public origin (for example, `https://your-site.onrender.com`, without a trailing slash). Multiple allowed frontend origins can be comma-separated. `VITE_API_URL` is used at build time, so redeploy the frontend after changing it; redeploy the backend after changing `FRONTEND_URL`.
 
 On first startup, Express creates the `hotels` table and inserts the built-in hotel collection only when the table is empty. Removing a seeded hotel will not cause it to be reinserted on later restarts.
 
