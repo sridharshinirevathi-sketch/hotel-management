@@ -179,8 +179,8 @@ app.use('/api', (_request, response) => {
 })
 
 app.use(express.static(frontendDist))
-app.use((request, response, next) => {
-  if (request.method !== 'GET' || !request.accepts('html')) return next()
+app.get('/{*path}', (request, response, next) => {
+  if (!request.accepts('html')) return next()
   response.sendFile(path.join(frontendDist, 'index.html'), error => {
     if (error) next(error)
   })

@@ -126,7 +126,11 @@ export async function readApiResponse(response, action = 'The hotel service') {
   if (!response.ok) {
     throw new Error(result?.error || `${action} failed (HTTP ${response.status}).`)
   }
-  if (result === null) throw new Error(`${action} returned an empty response (HTTP ${response.status}).`)
+  if (result === null) {
+    const contentType = response.headers.get('content-type') || 'unknown content type'
+    const responsePath = response.url ? new URL(response.url).pathname : 'unknown endpoint'
+    throw new Error(`${action} returned an empty response (HTTP ${response.status}, ${contentType}) from ${responsePath}. Ensure the Express API is running and the frontend is using its API proxy.`)
+  }
   return result
 }
 

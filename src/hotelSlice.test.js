@@ -24,7 +24,7 @@ test('keeps loaded hotels when a later refresh fails', () => {
 test('reports an empty successful API response without a JSON parsing error', async () => {
   await assert.rejects(
     readApiResponse(new Response('', { status: 200 }), 'Hotel photo upload'),
-    /Hotel photo upload returned an empty response \(HTTP 200\)\./,
+    /Hotel photo upload returned an empty response \(HTTP 200, text\/plain;charset=UTF-8\) from unknown endpoint\. Ensure the Express API is running and the frontend is using its API proxy\./,
   )
 })
 
