@@ -9,6 +9,7 @@ import './booking.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', price: '', image: '', location: '' }
+const HOTELS_PER_PAGE = 6
 
 function Header() {
   return <header className="topbar"><Link className="brand" to="/"><span className="brand-mark">H</span><span>haven<span className="brand-light">stay</span></span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
@@ -30,10 +31,14 @@ function Home() {
   const [min, setMin] = useState('')
   const [max, setMax] = useState('')
   const [notice, setNotice] = useState('')
+  const [page, setPage] = useState(1)
   const filtered = useMemo(() => hotels.filter(h =>
     (h.title.toLowerCase().includes(query.toLowerCase()) || h.location.toLowerCase().includes(query.toLowerCase())) &&
     (min === '' || h.price >= Number(min)) &&
     (max === '' || h.price <= Number(max))), [hotels, query, min, max])
+  const pageCount = Math.ceil(filtered.length / HOTELS_PER_PAGE)
+  const currentPage = Math.min(page, Math.max(pageCount, 1))
+  const pageHotels = filtered.slice((currentPage - 1) * HOTELS_PER_PAGE, currentPage * HOTELS_PER_PAGE)
   const remove = async (id) => {
     try {
       await dispatch(deleteHotel(id)).unwrap()
@@ -43,16 +48,19 @@ function Home() {
       setNotice(error || 'Could not delete this hotel.')
     }
   }
-  const updateFilter = (setter) => (event) => setter(event.target.value)
+  const updateFilter = (setter) => (event) => {
+    setter(event.target.value)
+    setPage(1)
+  }
   return <><Helmet><title>Tamilnadu Hotel Collections | Havenstay</title><meta name="description" content="Browse hotel collections and find memorable stays across Tamil Nadu." /></Helmet><main>
     <section className="hero"><div className="hero-copy"><span className="eyebrow">WELCOME TO</span><h1>Tamilnadu Hotel <em>Collections</em></h1><p>Discover memorable stays across Tamil Nadu.<br />Find your perfect place to stay.</p><a href="#stays" className="hero-button">Explore stays <span>↘</span></a></div></section>
     <section className="listing" id="stays"><div className="section-head"><div><h2>Places to stay</h2></div><p>Approximate nightly prices in INR.<br />Confirm current rates with the hotel.</p></div>
-      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Price per night</span><label><span className="sr-only">Minimum price</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum price</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax('') }}>Reset</button></div>
+      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Price per night</span><label><span className="sr-only">Minimum price</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum price</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
       {status === 'failed' && hotels.length > 0 && <div className="service-notice" role="alert"><span>Showing sample listings because the hotel service is unavailable. Changes and booking requests need a working backend and database.</span><button onClick={() => dispatch(fetchHotels())}>Retry connection</button></div>}
       <div className="results-line"><span>{filtered.length} stays to inspire your next trip</span><span>Sort by <strong>Recommended⌄</strong></span></div>
       {status === 'loading' && hotels.length === 0 ? <div className="empty-state"><h3>Loading hotels…</h3></div>
         : status === 'failed' && hotels.length === 0 ? <div className="empty-state" role="alert"><h3>Could not load hotels</h3><p>{loadError}</p><button className="submit-button" onClick={() => dispatch(fetchHotels())}>Try again</button></div>
-          : filtered.length ? <div className="hotel-grid">{filtered.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}
+          : filtered.length ? <><div className="hotel-grid">{pageHotels.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div>{pageCount > 1 && <nav className="pagination" aria-label="Hotel listing pages"><button aria-label="Previous page" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}>←</button>{Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} className={currentPage === pageNumber ? 'active' : ''} aria-label={`Page ${pageNumber}`} aria-current={currentPage === pageNumber ? 'page' : undefined} onClick={() => setPage(pageNumber)}>{pageNumber}</button>)}<button aria-label="Next page" onClick={() => setPage(currentPage + 1)} disabled={currentPage === pageCount}>→</button></nav>}</> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}
     </section>
   </main><footer id="about"><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><a href="#stays">Back to top ↑</a></footer>{notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}</>
 }
