@@ -26,3 +26,4 @@
 .booking-estimate strong{color:#f2f2ed}
 .photo-tag{background:#111d;color:#f2f2ed}
 .topbar nav,.host-link,.back-link,.form-heading p,.hotel-form>label:not(.upload-box),.form-row label,.upload-box,.upload-box small,.cancel-button,.detail-title p,.edit-detail,.coordinates{color:#c5c9c0}
+.hero h1{font-size:clamp(20px,5.5vw,64px);white-space:nowrap}
