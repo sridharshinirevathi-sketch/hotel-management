@@ -6,7 +6,7 @@ import L from 'leaflet'
 import { addHotel, deleteHotel, fetchHotels, readApiResponse, updateHotel } from './hotelSlice'
 import { apiUrl } from './api.js'
 import { calculateStraightLineDistanceKm, fetchDrivingRoute } from './directions.js'
-import { filterHotelsByRoomRate } from './hotelFilters.js'
+import { filterHotelsByRoomRate, sortHotelsByPrice } from './hotelFilters.js'
 import './App.css'
 import './booking.css'
 import 'leaflet/dist/leaflet.css'
@@ -39,15 +39,17 @@ function Home() {
   const [query, setQuery] = useState('')
   const [min, setMin] = useState('')
   const [max, setMax] = useState('')
+  const [sortOrder, setSortOrder] = useState('recommended')
   const [notice, setNotice] = useState('')
   const [page, setPage] = useState(1)
   const filtered = useMemo(
     () => filterHotelsByRoomRate(hotels, { query, min, max }),
     [hotels, query, min, max],
   )
-  const pageCount = Math.ceil(filtered.length / HOTELS_PER_PAGE)
+  const sortedHotels = useMemo(() => sortHotelsByPrice(filtered, sortOrder), [filtered, sortOrder])
+  const pageCount = Math.ceil(sortedHotels.length / HOTELS_PER_PAGE)
   const currentPage = Math.min(page, Math.max(pageCount, 1))
-  const pageHotels = filtered.slice((currentPage - 1) * HOTELS_PER_PAGE, currentPage * HOTELS_PER_PAGE)
+  const pageHotels = sortedHotels.slice((currentPage - 1) * HOTELS_PER_PAGE, currentPage * HOTELS_PER_PAGE)
   const remove = async (id) => {
     try {
       await dispatch(deleteHotel(id)).unwrap()
@@ -64,9 +66,9 @@ function Home() {
   return <><Helmet><title>Tamilnadu Hotel Collections</title><meta name="description" content="Browse hotel collections and find memorable stays across Tamil Nadu." /></Helmet><main>
     <section className="hero"><div className="hero-copy"><span className="eyebrow">WELCOME TO</span><h1>Tamilnadu Hotel <em>Collections</em></h1><p>Discover memorable stays across Tamil Nadu.<br />Find your perfect place to stay.</p><a href="#stays" className="hero-button">Explore stays <span>↘</span></a></div></section>
     <section className="listing" id="stays"><div className="section-head"><div><h2>Places to stay</h2></div><p>Search nightly room rates in INR.<br />Availability is reported by each listing.</p></div>
-      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search destinations or hotels" /></label><div className="price-filter"><span>Available room rate / night</span><label><span className="sr-only">Minimum room rate</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum room rate</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
+      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search destinations or hotels" /></label><div className="price-filter"><span>Available room rate / night</span><label><span className="sr-only">Minimum room rate</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum room rate</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setSortOrder('recommended'); setPage(1) }}>Reset</button></div>
       {status === 'failed' && hotels.length > 0 && <div className="service-notice" role="alert"><span>Showing sample listings because the hotel service is unavailable. Changes and booking requests need a working backend and database.</span><button onClick={() => dispatch(fetchHotels())}>Retry connection</button></div>}
-      <div className="results-line"><span>{filtered.length} stays to inspire your next trip</span><span>Sort by <strong>Recommended⌄</strong></span></div>
+      <div className="results-line"><span>{sortedHotels.length} stays to inspire your next trip</span><label className="sort-control">Sort by <select aria-label="Sort hotels by price" value={sortOrder} onChange={event => { setSortOrder(event.target.value); setPage(1) }}><option value="recommended">Recommended</option><option value="price-low-to-high">Price: Low to high</option><option value="price-high-to-low">Price: High to low</option></select></label></div>
       {status === 'loading' && hotels.length === 0 ? <div className="empty-state"><h3>Loading hotels…</h3></div>
         : status === 'failed' && hotels.length === 0 ? <div className="empty-state" role="alert"><h3>Could not load hotels</h3><p>{loadError}</p><button className="submit-button" onClick={() => dispatch(fetchHotels())}>Try again</button></div>
           : filtered.length ? <><div className="hotel-grid">{pageHotels.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div>{pageCount > 1 && <nav className="pagination" aria-label="Hotel listing pages"><button aria-label="Previous page" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}>←</button>{Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} className={currentPage === pageNumber ? 'active' : ''} aria-label={`Page ${pageNumber}`} aria-current={currentPage === pageNumber ? 'page' : undefined} onClick={() => setPage(pageNumber)}>{pageNumber}</button>)}<button aria-label="Next page" onClick={() => setPage(currentPage + 1)} disabled={currentPage === pageCount}>→</button></nav>}</> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}

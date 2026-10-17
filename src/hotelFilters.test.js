@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { filterHotelsByRoomRate } from './hotelFilters.js'
+import { filterHotelsByRoomRate, sortHotelsByPrice } from './hotelFilters.js'
 
 const hotels = [
   {
@@ -48,4 +48,21 @@ test('keeps all hotels and available rooms when no price is specified', () => {
   assert.deepEqual(result.map(hotel => hotel.id), ['matching', 'outside-range', 'no-rooms'])
   assert.equal(result[0].availableRooms.length, 2)
   assert.equal(result[0].priceFilterActive, false)
+})
+
+test('sorts hotels by their lowest matching room rate without mutating results', () => {
+  const filtered = filterHotelsByRoomRate(hotels, { min: '3000' })
+  const sorted = sortHotelsByPrice(filtered, 'price-low-to-high')
+
+  assert.deepEqual(sorted.map(hotel => hotel.id), ['matching', 'outside-range'])
+  assert.deepEqual(filtered.map(hotel => hotel.id), ['matching', 'outside-range'])
+})
+
+test('sorts hotels from highest price to lowest price', () => {
+  const filtered = filterHotelsByRoomRate(hotels, { min: '3000' })
+
+  assert.deepEqual(
+    sortHotelsByPrice(filtered, 'price-high-to-low').map(hotel => hotel.id),
+    ['outside-range', 'matching'],
+  )
 })
