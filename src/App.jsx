@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import L from 'leaflet'
 import { addHotel, deleteHotel, fetchHotels, readApiResponse, updateHotel } from './hotelSlice'
 import { apiUrl } from './api.js'
+import { fetchDrivingRoute } from './directions.js'
 import './App.css'
 import './booking.css'
+import 'leaflet/dist/leaflet.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 const emptyHotelForm = { title: '', description: '', latitude: '', longitude: '', coordinatesAreExact: false, rooms: [], price: '', image: '', location: '' }
@@ -264,6 +267,154 @@ function BookingRequest() {
     </main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
 }
 
+function HotelDirections({ hotel }) {
+  const mapElement = useRef(null)
+  const map = useRef(null)
+  const routeLayer = useRef(null)
+  const [locationAttempt, setLocationAttempt] = useState(0)
+  const [routeAttempt, setRouteAttempt] = useState(0)
+  const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
+  const [location, setLocation] = useState(() => ({
+    status: hasGeolocation ? 'loading' : 'unsupported',
+    position: null,
+  }))
+  const [route, setRoute] = useState({ status: 'idle', data: null, error: '' })
+  const latitude = Number(hotel.latitude)
+  const longitude = Number(hotel.longitude)
+
+  useEffect(() => {
+    let active = true
+    if (!hasGeolocation) return () => { active = false }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (active) {
+          setLocation({
+            status: 'available',
+            position: { latitude: coords.latitude, longitude: coords.longitude },
+          })
+          setRoute({ status: 'loading', data: null, error: '' })
+        }
+      },
+      error => {
+        if (active) {
+          setLocation({ status: error.code === 1 ? 'denied' : 'unavailable', position: null })
+          setRoute({ status: 'idle', data: null, error: '' })
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 300000, timeout: 15000 },
+    )
+
+    return () => { active = false }
+  }, [hasGeolocation, locationAttempt])
+
+  useEffect(() => {
+    if (!location.position) return undefined
+    const controller = new AbortController()
+    fetchDrivingRoute(location.position, { latitude, longitude }, controller.signal)
+      .then(data => setRoute({ status: 'ready', data, error: '' }))
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          setRoute({ status: 'failed', data: null, error: error.message || 'Could not load road directions.' })
+        }
+      })
+    return () => controller.abort()
+  }, [location.position, latitude, longitude, routeAttempt])
+
+  useEffect(() => {
+    if (!mapElement.current) return undefined
+    const instance = L.map(mapElement.current, { scrollWheelZoom: false })
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(instance)
+    instance.setView([latitude, longitude], 12)
+    map.current = instance
+    routeLayer.current = L.featureGroup().addTo(instance)
+
+    return () => {
+      instance.remove()
+      map.current = null
+      routeLayer.current = null
+    }
+  }, [latitude, longitude])
+
+  useEffect(() => {
+    if (!map.current || !routeLayer.current) return
+    const layer = routeLayer.current
+    layer.clearLayers()
+
+    const hotelMarker = L.circleMarker([latitude, longitude], {
+      radius: 8,
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#dc5c51',
+      fillOpacity: 1,
+    }).bindTooltip(hotel.title)
+    layer.addLayer(hotelMarker)
+
+    if (location.position) {
+      const originMarker = L.circleMarker([location.position.latitude, location.position.longitude], {
+        radius: 7,
+        color: '#ffffff',
+        weight: 2,
+        fillColor: '#3388ff',
+        fillOpacity: 1,
+      }).bindTooltip('Your current location')
+      layer.addLayer(originMarker)
+    }
+
+    if (route.status === 'ready') {
+      layer.addLayer(L.polyline(route.data.coordinates, {
+        color: '#3388ff',
+        weight: 6,
+        opacity: 0.9,
+      }))
+      map.current.fitBounds(layer.getBounds(), { padding: [28, 28] })
+    } else {
+      map.current.setView([latitude, longitude], 12)
+    }
+  }, [hotel.title, latitude, longitude, location.position, route])
+
+  const mapsUrl = new URL('https://www.google.com/maps/dir/')
+  mapsUrl.searchParams.set('api', '1')
+  mapsUrl.searchParams.set(
+    'destination',
+    hotel.coordinatesAreExact ? `${latitude},${longitude}` : `${hotel.title}, ${hotel.location}`,
+  )
+  mapsUrl.searchParams.set('travelmode', 'driving')
+  if (location.position) {
+    mapsUrl.searchParams.set('origin', `${location.position.latitude},${location.position.longitude}`)
+  }
+
+  const routeDistance = route.status === 'ready'
+    ? `${(route.data.distanceMeters / 1000).toFixed(1)} km`
+    : ''
+  const routeDuration = route.status === 'ready'
+    ? `${Math.round(route.data.durationSeconds / 60)} min`
+    : ''
+
+  return <section className="directions-section" aria-labelledby="directions-title">
+    <div className="directions-heading">
+      <div><span className="eyebrow">ROAD DIRECTIONS</span><h2 id="directions-title">Route to {hotel.title}</h2></div>
+      <a className="submit-button" href={mapsUrl.toString()} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
+    </div>
+    <p className="directions-privacy">Your location is shared with the public OSRM routing service to calculate this route. {hotel.coordinatesAreExact ? 'The route ends at the saved hotel pin.' : 'The route ends at approximate town coordinates, not the exact hotel entrance.'}</p>
+    <div className="route-map" ref={mapElement} role="img" aria-label={`Road route map to ${hotel.title}`} />
+    {location.status === 'loading' && <p className="route-status" role="status">Requesting your location to calculate the road route…</p>}
+    {location.status === 'denied' && <p className="route-status" role="status">Location permission was denied. Allow location access to display the route line.</p>}
+    {location.status === 'unsupported' && <p className="route-status" role="status">This browser does not support location access, so an in-page route cannot be displayed.</p>}
+    {location.status === 'unavailable' && <p className="route-status" role="status">Your location is unavailable. Check your device settings and try again.</p>}
+    {route.status === 'loading' && location.status === 'available' && <p className="route-status" role="status">Finding the driving route…</p>}
+    {route.status === 'failed' && <p className="route-status" role="alert">Could not load the road route: {route.error}</p>}
+    {route.status === 'ready' && <p className="route-status route-summary"><strong>{routeDistance}</strong> · about <strong>{routeDuration}</strong> by road</p>}
+    <div className="route-actions">
+      {['denied', 'unavailable'].includes(location.status) && <button type="button" onClick={() => { setLocation({ status: 'loading', position: null }); setRoute({ status: 'idle', data: null, error: '' }); setLocationAttempt(attempt => attempt + 1) }}>Try location again</button>}
+      {location.status === 'available' && route.status === 'failed' && <button type="button" onClick={() => setRouteAttempt(attempt => attempt + 1)}>Try route again</button>}
+    </div>
+  </section>
+}
+
 function Detail() {
   const { id } = useParams()
   const hotel = useSelector(state => state.hotels.items.find(item => item.id === id))
@@ -272,7 +423,7 @@ function Detail() {
   if (!hotel && ['idle', 'loading'].includes(hotelsStatus)) return <main className="form-wrap"><div className="empty-state"><h2>Loading hotel…</h2></div></main>
   if (!hotel && hotelsStatus === 'failed') return <main className="form-wrap"><div className="empty-state" role="alert"><h2>Could not load hotel</h2><p>{hotelsError}</p><Link to="/">Return to stays</Link></div></main>
   if (!hotel) return <main className="form-wrap"><div className="empty-state"><h2>Hotel not found</h2><Link to="/">Return to stays</Link></div></main>
-  return <><Helmet><title>{hotel.title} | Havenstay</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap"><Link to="/" className="back-link">← All stays</Link><div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><div className="detail-actions"><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></div></div><img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} /><div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates only; this is not the property's street address: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>INDICATIVE PRICE</span><strong>{money(hotel.price)}</strong><span>approx. / night · confirm with hotel</span><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></aside></div><p className="booking-disclaimer">Prices and property details have not been independently verified. Contact the hotel directly to confirm exact address, availability, and current rates.</p><h2 className="map-title">Explore {hotel.location}</h2><div className="map-frame"><iframe title={`Map showing ${hotel.location}`} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${hotel.longitude - 0.04}%2C${hotel.latitude - 0.025}%2C${hotel.longitude + 0.04}%2C${hotel.latitude + 0.025}&layer=mapnik&marker=${hotel.latitude}%2C${hotel.longitude}`} /><a href={`https://www.openstreetmap.org/?mlat=${hotel.latitude}&mlon=${hotel.longitude}#map=13/${hotel.latitude}/${hotel.longitude}`} target="_blank" rel="noreferrer">View larger map ↗</a></div></main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+  return <><Helmet><title>{hotel.title} | Havenstay</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap"><Link to="/" className="back-link">← All stays</Link><div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><div className="detail-actions"><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></div></div><img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} /><div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates only; this is not the property's street address: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>INDICATIVE PRICE</span><strong>{money(hotel.price)}</strong><span>approx. / night · confirm with hotel</span><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></aside></div><HotelDirections hotel={hotel} /><p className="booking-disclaimer">Prices and property details have not been independently verified. Contact the hotel directly to confirm exact address, availability, and current rates.</p></main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
 }
 
 function App() {
