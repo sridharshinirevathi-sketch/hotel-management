@@ -16,7 +16,7 @@ const emptyHotelForm = { title: '', description: '', latitude: '', longitude: ''
 const HOTELS_PER_PAGE = 12
 
 function Header() {
-  return <header className="topbar"><Link className="brand" to="/" aria-label="Home"><span className="brand-mark">H</span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
+  return <header className="topbar"><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
 }
 
 function HotelCard({ hotel, onDelete }) {
