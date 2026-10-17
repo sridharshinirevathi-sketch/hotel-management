@@ -1,9 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchDrivingRoute } from './directions.js'
+import { calculateStraightLineDistanceKm, fetchDrivingRoute } from './directions.js'
 
 const origin = { latitude: 13.08, longitude: 80.27 }
 const destination = { latitude: 13.09, longitude: 80.28 }
+
+test('calculates approximate straight-line distance between valid coordinates', () => {
+  assert.ok(
+    Math.abs(calculateStraightLineDistanceKm(
+      { latitude: 0, longitude: 0 },
+      { latitude: 0, longitude: 1 },
+    ) - 111.2) < 0.2,
+  )
+})
+
+test('does not calculate straight-line distance from invalid coordinates', () => {
+  assert.equal(
+    calculateStraightLineDistanceKm(
+      { latitude: 91, longitude: 0 },
+      { latitude: 0, longitude: 0 },
+    ),
+    null,
+  )
+})
 
 test('requests a road route and converts its geometry for the map', async () => {
   let requestedUrl

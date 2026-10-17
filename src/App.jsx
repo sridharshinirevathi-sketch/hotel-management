@@ -5,7 +5,8 @@ import { Helmet } from 'react-helmet-async'
 import L from 'leaflet'
 import { addHotel, deleteHotel, fetchHotels, readApiResponse, updateHotel } from './hotelSlice'
 import { apiUrl } from './api.js'
-import { fetchDrivingRoute } from './directions.js'
+import { calculateStraightLineDistanceKm, fetchDrivingRoute } from './directions.js'
+import { filterHotelsByRoomRate } from './hotelFilters.js'
 import './App.css'
 import './booking.css'
 import 'leaflet/dist/leaflet.css'
@@ -15,7 +16,7 @@ const emptyHotelForm = { title: '', description: '', latitude: '', longitude: ''
 const HOTELS_PER_PAGE = 12
 
 function Header() {
-  return <header className="topbar"><Link className="brand" to="/"><span className="brand-mark">H</span><span>haven<span className="brand-light">stay</span></span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
+  return <header className="topbar"><Link className="brand" to="/" aria-label="Home"><span className="brand-mark">H</span></Link><nav><Link to="/">Explore stays</Link><a href="#about">About</a></nav><Link to="/new" className="host-link">＋ <span>Add a hotel</span></Link></header>
 }
 
 function HotelCard({ hotel, onDelete }) {
@@ -23,9 +24,10 @@ function HotelCard({ hotel, onDelete }) {
     ? `${hotel.latitude},${hotel.longitude}`
     : `${hotel.title}, ${hotel.location}`
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent('My Location')}&destination=${encodeURIComponent(destination)}&travelmode=driving`
+  const priceFilterActive = hotel.priceFilterActive
   return <article className="hotel-card">
     <Link to={`/hotel/${hotel.id}`} className="card-photo"><img src={hotel.image} alt={`${hotel.title} in ${hotel.location}`} /><span className="photo-tag">{hotel.imageIsVerified ? 'HOTEL PHOTO' : 'REPRESENTATIVE PHOTO'}</span></Link>
-    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><div className="card-location-row"><a href={directionsUrl} target="_blank" rel="noreferrer" className="location-label" aria-label={`Open directions to ${hotel.title}`}>{hotel.location}</a><a className="directions-link" href={directionsUrl} target="_blank" rel="noreferrer" aria-label={`Get live directions to ${hotel.title}`}>Directions ↗</a></div><p className="description-snippet">{hotel.description}</p>{hotel.availableRooms.length ? <div className="room-offers"><strong>Rooms reported available</strong>{hotel.availableRooms.map(room => <div className="room-offer" key={room.id || `${room.roomType}-${room.price}`}><span>{room.roomType} · {room.availableCount} left</span><strong>{money(room.price)}<small> / night</small></strong></div>)}</div> : <p className="room-availability-note">{hotel.rooms?.length ? 'No rooms currently reported as available.' : 'Room availability has not been added yet.'}</p>}<div className="card-footer"><span><strong>{money(hotel.price)}</strong> <span className="night">reference / night</span></span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
+    <div className="card-content"><div className="card-title-line"><Link to={`/hotel/${hotel.id}`}><h3>{hotel.title}</h3></Link></div><div className="card-location-row"><a href={directionsUrl} target="_blank" rel="noreferrer" className="location-label" aria-label={`Open directions to ${hotel.title}`}>{hotel.location}</a><a className="directions-link" href={directionsUrl} target="_blank" rel="noreferrer" aria-label={`Get live directions to ${hotel.title}`}>Directions ↗</a></div><p className="description-snippet">{hotel.description}</p>{hotel.availableRooms.length ? <div className="room-offers"><strong>{priceFilterActive ? 'Available rooms in your price range' : 'Rooms reported available'}</strong>{hotel.availableRooms.map(room => <div className="room-offer" key={room.id || `${room.roomType}-${room.price}`}><span>{room.roomType} · {room.availableCount} left</span><strong>{money(room.price)}<small> / night</small></strong></div>)}</div> : <p className="room-availability-note">{hotel.rooms?.length ? 'No rooms currently reported as available.' : 'Room availability has not been added yet.'}</p>}<div className="card-footer"><span>{priceFilterActive ? <><strong>{money(Math.min(...hotel.availableRooms.map(room => room.price)))}</strong> <span className="night">matching rate / night</span></> : <><strong>{money(hotel.price)}</strong> <span className="night">reference / night</span></>}</span><div className="card-actions"><Link to={`/edit/${hotel.id}`} aria-label={`Edit ${hotel.title}`}>Edit</Link><button onClick={() => onDelete(hotel.id)} aria-label={`Delete ${hotel.title}`}>Delete</button></div></div></div>
   </article>
 }
 
@@ -39,16 +41,10 @@ function Home() {
   const [max, setMax] = useState('')
   const [notice, setNotice] = useState('')
   const [page, setPage] = useState(1)
-  const priceFilterActive = min !== '' || max !== ''
-  const filtered = useMemo(() => hotels.map(hotel => ({
-    ...hotel,
-    availableRooms: (hotel.rooms || []).filter(room =>
-      room.availableCount > 0 &&
-      (min === '' || room.price >= Number(min)) &&
-      (max === '' || room.price <= Number(max))),
-  })).filter(hotel =>
-    (hotel.title.toLowerCase().includes(query.toLowerCase()) || hotel.location.toLowerCase().includes(query.toLowerCase())) &&
-    (!priceFilterActive || hotel.availableRooms.length > 0)), [hotels, query, min, max, priceFilterActive])
+  const filtered = useMemo(
+    () => filterHotelsByRoomRate(hotels, { query, min, max }),
+    [hotels, query, min, max],
+  )
   const pageCount = Math.ceil(filtered.length / HOTELS_PER_PAGE)
   const currentPage = Math.min(page, Math.max(pageCount, 1))
   const pageHotels = filtered.slice((currentPage - 1) * HOTELS_PER_PAGE, currentPage * HOTELS_PER_PAGE)
@@ -65,17 +61,17 @@ function Home() {
     setter(event.target.value)
     setPage(1)
   }
-  return <><Helmet><title>Tamilnadu Hotel Collections | Havenstay</title><meta name="description" content="Browse hotel collections and find memorable stays across Tamil Nadu." /></Helmet><main>
+  return <><Helmet><title>Tamilnadu Hotel Collections</title><meta name="description" content="Browse hotel collections and find memorable stays across Tamil Nadu." /></Helmet><main>
     <section className="hero"><div className="hero-copy"><span className="eyebrow">WELCOME TO</span><h1>Tamilnadu Hotel <em>Collections</em></h1><p>Discover memorable stays across Tamil Nadu.<br />Find your perfect place to stay.</p><a href="#stays" className="hero-button">Explore stays <span>↘</span></a></div></section>
     <section className="listing" id="stays"><div className="section-head"><div><h2>Places to stay</h2></div><p>Search nightly room rates in INR.<br />Availability is reported by each listing.</p></div>
-      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search hotels by name or location" /></label><div className="price-filter"><span>Available room rate</span><label><span className="sr-only">Minimum room rate</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum room rate</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
+      <div className="filters"><label className="search-box"><span>⌕</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search destinations or stays" aria-label="Search destinations or hotels" /></label><div className="price-filter"><span>Available room rate / night</span><label><span className="sr-only">Minimum room rate</span><input type="number" min="0" value={min} onChange={updateFilter(setMin)} placeholder="Min ₹" /></label><span className="price-dash">—</span><label><span className="sr-only">Maximum room rate</span><input type="number" min="0" value={max} onChange={updateFilter(setMax)} placeholder="Max ₹" /></label></div><button className="filter-reset" onClick={() => { setQuery(''); setMin(''); setMax(''); setPage(1) }}>Reset</button></div>
       {status === 'failed' && hotels.length > 0 && <div className="service-notice" role="alert"><span>Showing sample listings because the hotel service is unavailable. Changes and booking requests need a working backend and database.</span><button onClick={() => dispatch(fetchHotels())}>Retry connection</button></div>}
       <div className="results-line"><span>{filtered.length} stays to inspire your next trip</span><span>Sort by <strong>Recommended⌄</strong></span></div>
       {status === 'loading' && hotels.length === 0 ? <div className="empty-state"><h3>Loading hotels…</h3></div>
         : status === 'failed' && hotels.length === 0 ? <div className="empty-state" role="alert"><h3>Could not load hotels</h3><p>{loadError}</p><button className="submit-button" onClick={() => dispatch(fetchHotels())}>Try again</button></div>
           : filtered.length ? <><div className="hotel-grid">{pageHotels.map(hotel => <HotelCard key={hotel.id} hotel={hotel} onDelete={remove} />)}</div>{pageCount > 1 && <nav className="pagination" aria-label="Hotel listing pages"><button aria-label="Previous page" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}>←</button>{Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} className={currentPage === pageNumber ? 'active' : ''} aria-label={`Page ${pageNumber}`} aria-current={currentPage === pageNumber ? 'page' : undefined} onClick={() => setPage(pageNumber)}>{pageNumber}</button>)}<button aria-label="Next page" onClick={() => setPage(currentPage + 1)} disabled={currentPage === pageCount}>→</button></nav>}</> : <div className="empty-state"><span>⌕</span><h3>No stays found</h3><p>Try a different title or price range.</p></div>}
     </section>
-  </main><footer id="about"><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><a href="#stays">Back to top ↑</a></footer>{notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}</>
+  </main><footer id="about"><span>© 2025</span><span>Stay a little closer to somewhere new.</span><a href="#stays">Back to top ↑</a></footer>{notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}</>
 }
 
 function HotelForm() {
@@ -170,7 +166,7 @@ function HotelForm() {
   if (id && !hotel && ['idle', 'loading'].includes(hotelsStatus)) return <main className="form-wrap"><div className="empty-state"><h2>Loading hotel…</h2></div></main>
   if (id && !hotel && hotelsStatus === 'failed') return <main className="form-wrap"><div className="empty-state" role="alert"><h2>Could not load hotel</h2><p>{hotelsError}</p><Link to="/">Return to stays</Link></div></main>
   if (id && !hotel) return <main className="form-wrap"><div className="empty-state"><h2>Hotel not found</h2><Link to="/">Return to stays</Link></div></main>
-  return <><Helmet><title>{id ? 'Edit stay' : 'Add a stay'} | Havenstay</title><meta name="description" content="Manage hotel stay details on Havenstay." /></Helmet><main className="form-wrap"><Link to="/" className="back-link">← Back to stays</Link><div className="form-heading"><span className="eyebrow">{id ? 'UPDATE YOUR LISTING' : 'GROW THE COLLECTION'}</span><h1>{id ? 'Edit your stay' : 'Add a new stay'}</h1><p>Share the details that help travelers find their perfect place.</p></div><form className="hotel-form" onSubmit={submit}>
+  return <><Helmet><title>{id ? 'Edit stay' : 'Add a stay'}</title><meta name="description" content="Manage hotel stay details." /></Helmet><main className="form-wrap"><Link to="/" className="back-link">← Back to stays</Link><div className="form-heading"><span className="eyebrow">{id ? 'UPDATE YOUR LISTING' : 'GROW THE COLLECTION'}</span><h1>{id ? 'Edit your stay' : 'Add a new stay'}</h1><p>Share the details that help travelers find their perfect place.</p></div><form className="hotel-form" onSubmit={submit}>
     <label className="upload-box">{imagePreview || currentForm.image ? <img className="preview" src={imagePreview || currentForm.image} alt="Hotel upload preview" /> : <span className="upload-icon">↑</span>}<strong>{imagePreview || currentForm.image ? 'Change photo' : 'Upload a hotel photo'}</strong><small>JPG, PNG, or WebP · Up to 5 MB</small><input type="file" accept="image/jpeg,image/png,image/webp" onChange={imageChange} /></label>
     <label>Hotel name<input name="title" value={currentForm.title} onChange={change} required maxLength="100" placeholder="e.g. The Shoreline House" /></label>
     <label>Hotel address or location<input name="location" value={currentForm.location} onChange={change} required maxLength="200" placeholder="Hotel address, area, city" /></label>
@@ -230,7 +226,7 @@ function BookingRequest() {
   }
 
   if (confirmation) {
-    return <><Helmet><title>Request received | Havenstay</title></Helmet><main className="form-wrap">
+    return <><Helmet><title>Request received</title></Helmet><main className="form-wrap">
       <section className="booking-confirmation" role="status">
         <span className="eyebrow">REQUEST RECEIVED</span>
         <h1>Thanks, {form.guestName}.</h1>
@@ -244,10 +240,10 @@ function BookingRequest() {
         <p className="booking-disclaimer">No payment was collected. The nightly price is an unverified estimate; contact the hotel to confirm availability, exact rates, and booking details.</p>
         <Link to="/" className="submit-button">Back to stays →</Link>
       </section>
-    </main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+    </main><footer><span>© 2025</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
   }
 
-  return <><Helmet><title>Request a stay at {hotel.title} | Havenstay</title><meta name="description" content={`Send a booking request to ${hotel.title}.`} /></Helmet>
+  return <><Helmet><title>Request a stay at {hotel.title}</title><meta name="description" content={`Send a booking request to ${hotel.title}.`} /></Helmet>
     <main className="form-wrap">
       <Link to={`/hotel/${hotel.id}`} className="back-link">← Back to {hotel.title}</Link>
       <div className="form-heading"><span className="eyebrow">NO PAYMENT REQUIRED</span><h1>Request a stay</h1><p>{hotel.title} · {hotel.location}</p></div>
@@ -264,7 +260,7 @@ function BookingRequest() {
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="form-actions"><Link to={`/hotel/${hotel.id}`} className="cancel-button">Cancel</Link><button type="submit" className="submit-button" disabled={saving}>{saving ? 'Sending…' : 'Send request'} <span>→</span></button></div>
       </form>
-    </main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+    </main><footer><span>© 2025</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
 }
 
 function HotelDirections({ hotel }) {
@@ -393,12 +389,21 @@ function HotelDirections({ hotel }) {
   const routeDuration = route.status === 'ready'
     ? `${Math.round(route.data.durationSeconds / 60)} min`
     : ''
+  const directDistanceKm = location.position
+    ? calculateStraightLineDistanceKm(location.position, { latitude, longitude })
+    : null
+  const directDistance = directDistanceKm === null
+    ? ''
+    : directDistanceKm < 1
+      ? `${Math.round(directDistanceKm * 1000)} m`
+      : `${directDistanceKm.toFixed(1)} km`
 
   return <section className="directions-section" aria-labelledby="directions-title">
     <div className="directions-heading">
       <div><span className="eyebrow">ROAD DIRECTIONS</span><h2 id="directions-title">Route to {hotel.title}</h2></div>
       <a className="submit-button" href={mapsUrl.toString()} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
     </div>
+    {directDistance && <p className="direct-distance"><strong>{directDistance}</strong> straight-line distance from your current location{hotel.coordinatesAreExact ? '.' : ' (approximate town location).'}{route.status === 'ready' && <> Road route: <strong>{routeDistance}</strong>, about <strong>{routeDuration}</strong>.</>}</p>}
     <p className="directions-privacy">Your location is shared with the public OSRM routing service to calculate this route. {hotel.coordinatesAreExact ? 'The route ends at the saved hotel pin.' : 'The route ends at approximate town coordinates, not the exact hotel entrance.'}</p>
     <div className="route-map" ref={mapElement} role="img" aria-label={`Road route map to ${hotel.title}`} />
     {location.status === 'loading' && <p className="route-status" role="status">Requesting your location to calculate the road route…</p>}
@@ -423,7 +428,14 @@ function Detail() {
   if (!hotel && ['idle', 'loading'].includes(hotelsStatus)) return <main className="form-wrap"><div className="empty-state"><h2>Loading hotel…</h2></div></main>
   if (!hotel && hotelsStatus === 'failed') return <main className="form-wrap"><div className="empty-state" role="alert"><h2>Could not load hotel</h2><p>{hotelsError}</p><Link to="/">Return to stays</Link></div></main>
   if (!hotel) return <main className="form-wrap"><div className="empty-state"><h2>Hotel not found</h2><Link to="/">Return to stays</Link></div></main>
-  return <><Helmet><title>{hotel.title} | Havenstay</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap"><Link to="/" className="back-link">← All stays</Link><div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><div className="detail-actions"><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></div></div><img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} /><div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates only; this is not the property's street address: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>INDICATIVE PRICE</span><strong>{money(hotel.price)}</strong><span>approx. / night · confirm with hotel</span><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></aside></div><HotelDirections hotel={hotel} /><p className="booking-disclaimer">Prices and property details have not been independently verified. Contact the hotel directly to confirm exact address, availability, and current rates.</p></main><footer><span>© 2025 Havenstay</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
+  return <><Helmet><title>{hotel.title}</title><meta name="description" content={hotel.description.slice(0, 155)} /></Helmet><main className="detail-wrap">
+    <Link to="/" className="back-link">← All stays</Link>
+    <div className="detail-title"><div><span className="eyebrow">TAMIL NADU HOTEL COLLECTION</span><h1>{hotel.title}</h1><p>{hotel.location}</p></div><div className="detail-actions"><Link to={`/edit/${hotel.id}`} className="edit-detail">Edit listing</Link><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></div></div>
+    <HotelDirections hotel={hotel} />
+    <img className="detail-image" src={hotel.image} alt={`${hotel.title}, ${hotel.location}`} />
+    <div className="detail-columns"><article><h2>Hotel details</h2><p>{hotel.description}</p><p className="coordinates">⌖ &nbsp;Approximate town coordinates only; this is not the property's street address: {hotel.latitude}, {hotel.longitude}</p></article><aside><span>INDICATIVE PRICE</span><strong>{money(hotel.price)}</strong><span>approx. / night · confirm with hotel</span><Link to={`/book/${hotel.id}`} className="submit-button">Request a stay →</Link></aside></div>
+    <p className="booking-disclaimer">Prices and property details have not been independently verified. Contact the hotel directly to confirm exact address, availability, and current rates.</p>
+  </main><footer><span>© 2025</span><span>Stay a little closer to somewhere new.</span><Link to="/">Back to stays</Link></footer></>
 }
 
 function App() {

@@ -83,4 +83,4 @@ WHERE id = 'request-uuid';
 
 Use `declined` instead of `confirmed` when the property cannot accept a request. Keep database access restricted.
 
-The sample collection's nightly prices are illustrative and its coordinates are town-level, not exact property addresses. Verify prices, availability, and street addresses with each hotel before making travel plans.
+The sample collection's nightly prices are illustrative and its coordinates are town-level, not exact property addresses. Price searches match available room rates; the reference price is not used for price-range filtering. The hotel detail page can request your browser location to show the approximate direct distance and a driving route. Route calculation shares your coordinates with the public OSRM routing service; town-level hotel coordinates can place the route endpoint away from the actual property. Verify prices, availability, and street addresses with each hotel before making travel plans.

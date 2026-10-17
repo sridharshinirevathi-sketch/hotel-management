@@ -27,10 +27,12 @@
 .photo-tag{background:#111d;color:#f2f2ed}
 .topbar nav,.host-link,.back-link,.form-heading p,.hotel-form>label:not(.upload-box),.form-row label,.upload-box,.upload-box small,.cancel-button,.detail-title p,.edit-detail,.coordinates{color:#c5c9c0}
 .hero h1{font-size:clamp(20px,5.5vw,64px);white-space:nowrap}
-.directions-section{margin:30px 0;padding:24px;background:#111;border:1px solid #303030}
+.directions-section{margin:15px 0 26px;padding:24px;background:#111;border:1px solid #303030}
 .directions-heading{display:flex;justify-content:space-between;align-items:center;gap:18px}
 .directions-heading h2{font:500 27px 'Playfair Display',serif;color:#f5f5f2;margin:8px 0 16px}
 .directions-privacy,.route-status{font-size:11px;line-height:1.7;color:#b8b8b0}
+.direct-distance{margin:0 0 12px;font-size:12px;line-height:1.7;color:#c5c9c0}
+.direct-distance strong{color:#f5f5f2}
 .directions-privacy{margin:0 0 13px}
 .route-map{width:100%;height:430px;background:#e5e3dc}
 .route-status{margin:12px 0 0}
